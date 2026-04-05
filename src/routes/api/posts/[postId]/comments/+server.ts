@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { comments, posts, users } from '$lib/server/db/schema.js';
+import { comments, posts, users, votes } from '$lib/server/db/schema.js';
 import type { RequestHandler } from './$types.js';
 
 /**
@@ -29,16 +29,27 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	}
 
 	try {
-		const { body, parentCommentId } = await request.json();
+		const { body, parentCommentId, imageUrl, gifUrl, linkUrl, linkTitle } = await request.json();
 
-		// Validate input
-		if (!body || typeof body !== 'string' || body.trim().length === 0) {
-			return json({ error: 'Comment body is required' }, { status: 400 });
+		// Validate input - allow empty body if there's media content
+		const hasImage = imageUrl && typeof imageUrl === 'string' && imageUrl.length > 0;
+		const hasGif = gifUrl && typeof gifUrl === 'string' && gifUrl.length > 0;
+		const hasLink = linkUrl && typeof linkUrl === 'string' && linkUrl.length > 0;
+		const hasMedia = hasImage || hasGif || hasLink;
+		
+		const bodyStr = (body === null || body === undefined) ? '' : String(body);
+		
+		// Allow comment with just a GIF (no body required)
+		if (!hasMedia && bodyStr.trim().length === 0) {
+			return json({ error: 'Comment body or media is required' }, { status: 400 });
 		}
 
-		if (body.length > 10000) {
+		if (bodyStr.length > 10000) {
 			return json({ error: 'Comment body too long (max 10000 characters)' }, { status: 400 });
 		}
+
+		// Use body text or empty string if there's media
+		const commentBody = bodyStr.trim().length > 0 ? bodyStr.trim() : '';
 
 		// Verify post exists
 		const [post] = await db
@@ -90,19 +101,23 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			depth = 0;
 		}
 
-		// Insert the comment
+		// Insert the comment with auto-upvote (user's own upvote)
 		const [newComment] = await db
 			.insert(comments)
 			.values({
 				postId,
 				parentCommentId: parentCommentId || null,
 				userId: locals.user.id,
-				body: body.trim(),
+				body: commentBody || '',
+				imageUrl: imageUrl || null,
+				gifUrl: gifUrl || null,
+				linkUrl: linkUrl || null,
+				linkTitle: linkTitle || null,
 				path,
 				depth,
-				upvotes: 0,
+				upvotes: 1, // Auto-upvote by author
 				downvotes: 0,
-				score: 0,
+				score: 1, // Start with 1 score (own upvote)
 				replyCount: 0,
 				isDeleted: false,
 				isEdited: false,
@@ -114,6 +129,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 				parentCommentId: comments.parentCommentId,
 				userId: comments.userId,
 				body: comments.body,
+				imageUrl: comments.imageUrl,
+				gifUrl: comments.gifUrl,
+				linkUrl: comments.linkUrl,
+				linkTitle: comments.linkTitle,
 				path: comments.path,
 				depth: comments.depth,
 				upvotes: comments.upvotes,
@@ -125,6 +144,16 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 				isBestAnswer: comments.isBestAnswer,
 				createdAt: comments.createdAt,
 				updatedAt: comments.updatedAt,
+			});
+
+		// Create auto-upvote vote record
+		await db
+			.insert(votes)
+			.values({
+				userId: locals.user.id,
+				targetId: newComment.id,
+				targetType: 'comment',
+				value: 1,
 			});
 
 		// Update comment count on post
@@ -164,7 +193,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 					username: author?.username || 'anonymous',
 					avatarUrl: author?.image || '',
 				},
-				userVote: 0, // New comment, no vote yet
+				userVote: 1, // Author auto-upvoted their own comment
 			},
 			success: true,
 		});

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import * as Lucide from 'lucide-svelte';
+  import Icon from '@iconify/svelte';
 
   const { data = {} } = $props<{
     data?: {
@@ -103,25 +103,25 @@
       key: 'text',
       label: 'Text Post',
       description: 'Share a discussion or write your thoughts',
-      icon: Lucide.FileText
+      icon: 'lucide:file-text'
     },
     {
       key: 'link',
       label: 'Share a Link',
       description: 'Share an interesting article or website',
-      icon: Lucide.Link
+      icon: 'lucide:link'
     },
     {
       key: 'image',
       label: 'Images & Video',
       description: 'Upload photos, GIFs, or videos',
-      icon: Lucide.Image
+      icon: 'lucide:image'
     },
     {
       key: 'poll',
       label: 'Poll',
       description: 'Ask the community a question',
-      icon: Lucide.BarChart3
+      icon: 'lucide:bar-chart-3'
     },
   ] as const;
 
@@ -162,7 +162,7 @@
                 class="type-selector-btn {postType === opt.key ? 'active' : ''}"
                 onclick={() => postType = opt.key as 'text' | 'link' | 'image'}
               >
-                <div class="type-icon"><svelte:component this={opt.icon} size={18} /></div>
+                <div class="type-icon"><Icon icon={opt.icon} width="18" height="18" /></div>
                 <div class="type-info">
                   <div class="type-label">{opt.label}</div>
                   <div class="type-description">{opt.description}</div>
@@ -175,7 +175,7 @@
         <!-- Error banner -->
         {#if error}
           <div class="error-banner" role="alert">
-            <Lucide.AlertCircle size={16} />
+            <Icon icon="lucide:alert-circle" width="16" height="16" />
             {error}
           </div>
         {/if}
@@ -246,7 +246,7 @@
                 />
                 {#if linkUrl}
                   <div class="link-preview">
-                    <Lucide.Info size={14} />
+                    <Icon icon="lucide:info" width="14" height="14" />
                     <span>Link preview will generate when you post</span>
                   </div>
                 {/if}
@@ -267,7 +267,7 @@
                   <span class="content-hint">Images, GIFs, videos</span>
                 </div>
                 <div class="upload-zone">
-                  <Lucide.CloudUpload size={48} />
+                  <Icon icon="lucide:cloud-upload" width="48" height="48" />
                   <p class="upload-text">Drag & drop or click to select</p>
                   <span class="upload-hint">PNG, JPG, GIF, MP4 up to 1 GB</span>
                 </div>
@@ -306,7 +306,7 @@
                             class="poll-remove-btn"
                             onclick={() => removePollOption(index)}
                           >
-                            <Lucide.X size={16} />
+                            <Icon icon="lucide:x" width="16" height="16" />
                           </button>
                         {/if}
                       </div>
@@ -314,7 +314,7 @@
                   </div>
                   {#if pollOptions.length < 6}
                     <button type="button" class="add-option-btn" onclick={addPollOption}>
-                      <Lucide.Plus size={16} />
+                      <Icon icon="lucide:plus" width="16" height="16" />
                       Add option
                     </button>
                   {/if}
@@ -365,12 +365,12 @@
               <div class="footer-left">
                 <label class="tag-btn {isNsfw ? 'tag-nsfw' : ''}">
                   <input type="checkbox" class="sr-only" name="isNsfw" bind:checked={isNsfw} />
-                  <Lucide.AlertTriangle size={14} />
+                  <Icon icon="lucide:alert-triangle" width="14" height="14" />
                   NSFW
                 </label>
                 <label class="tag-btn {isSpoiler ? 'tag-spoiler' : ''}">
                   <input type="checkbox" class="sr-only" name="isSpoiler" bind:checked={isSpoiler} />
-                  <Lucide.EyeOff size={14} />
+                  <Icon icon="lucide:eye-off" width="14" height="14" />
                   Spoiler
                 </label>
               </div>

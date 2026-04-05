@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
-  import * as Lucide from 'lucide-svelte';
+  import Icon from '@iconify/svelte';
   import PostCard from '$lib/component/ui/PostCard.svelte';
   import FeedTabs from '$lib/component/ui/FeedTabs.svelte';
   import Skeleton from '$lib/component/ui/Skeleton.svelte';
@@ -24,11 +24,11 @@
   let shortcutsOpen = $state(false);
 
   const sortOptions = [
-    { key: 'hot',    label: 'Hot',    icon: Lucide.Flame },
-    { key: 'new',    label: 'New',    icon: Lucide.Sparkles },
-    { key: 'top',    label: 'Top',    icon: Lucide.TrendingUp },
-    { key: 'rising', label: 'Rising', icon: Lucide.Rocket },
-    { key: 'best',   label: 'Best',   icon: Lucide.Star },
+    { key: 'hot',    label: 'Hot',    icon: 'lucide:flame' },
+    { key: 'new',    label: 'New',    icon: 'lucide:sparkles' },
+    { key: 'top',    label: 'Top',    icon: 'lucide:trending-up' },
+    { key: 'rising', label: 'Rising', icon: 'lucide:rocket' },
+    { key: 'best',   label: 'Best',   icon: 'lucide:star' },
   ] as const;
 
   const feedTitle = $derived(data.user ? `Welcome back, u/${data.user.username}` : 'Top posts today');
@@ -75,7 +75,7 @@
   <!-- New posts notification -->
   {#if newPostsAvailable > 0}
     <button class="new-posts-pill" onclick={loadNewPosts} transition:fade>
-      <Lucide.ChevronUp size={14} />
+      <Icon icon="lucide:chevron-up" width="14" height="14" />
       {newPostsAvailable} new posts
     </button>
   {/if}
@@ -103,7 +103,7 @@
           class="sort-tab {activeSort === opt.key ? 'active' : ''}"
           onclick={() => changeSort(opt.key)}
         >
-          <svelte:component this={opt.icon} size={14} /> {opt.label}
+          <Icon icon={opt.icon} width="14" height="14" /> {opt.label}
         </button>
       {/each}
     </div>

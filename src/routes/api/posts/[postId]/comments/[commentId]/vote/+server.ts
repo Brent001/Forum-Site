@@ -128,7 +128,41 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			}
 		}
 
-		// Update comment score
+		// If removing vote and user is the author, prevent removing the auto-upvote
+		// Authors cannot remove their own auto-upvote - they can only change to downvote
+		if (value === 0 && oldVoteValue !== 0) {
+			const [commentAuthor] = await db
+				.select({ userId: comments.userId })
+				.from(comments)
+				.where(eq(comments.id, commentId))
+				.limit(1);
+			
+			if (commentAuthor && commentAuthor.userId === locals.user.id) {
+				// Author cannot remove their auto-upvote - just update the vote to neutral but keep the comment score
+				await db
+					.update(votes)
+					.set({ value: 0, updatedAt: sql`NOW()` })
+					.where(and(
+						eq(votes.userId, locals.user.id),
+						eq(votes.targetId, commentId),
+						eq(votes.targetType, 'comment')
+					));
+				
+				// Get current score and return it
+				const [currentComment] = await db
+					.select({ score: comments.score })
+					.from(comments)
+					.where(eq(comments.id, commentId))
+					.limit(1);
+				
+				return json({
+					success: true,
+					newScore: currentComment?.score || 0,
+					userVote: 0,
+				});
+			}
+		}
+
 		const voteDiff = value - oldVoteValue;
 		if (voteDiff !== 0) {
 			if (voteDiff > 0) {

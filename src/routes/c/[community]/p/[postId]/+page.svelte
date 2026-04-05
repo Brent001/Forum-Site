@@ -2,7 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import * as Lucide from 'lucide-svelte';
+	import Icon from '@iconify/svelte';
 	import PostCard from '$lib/component/ui/PostCard.svelte';
 	import CommentForm from '$lib/component/ui/CommentForm.svelte';
 	import Comment from '$lib/component/ui/Comment.svelte';
@@ -65,14 +65,18 @@
 
 	function handleReply(commentId: string) {
 		replyToCommentId = commentId;
-		showCommentForm = false; // replies are handled inline in Comment.svelte
+		showCommentForm = false;
+	}
+
+	async function handleVote(commentId: string, newScore: number, userVote: number) {
+		await invalidateAll();
 	}
 
 	const SORT_OPTIONS = [
-		{ value: 'hot',  label: 'Hot',  icon: Lucide.Flame },
-		{ value: 'new',  label: 'New',  icon: Lucide.Sparkles },
-		{ value: 'top',  label: 'Top',  icon: Lucide.TrendingUp },
-		{ value: 'old',  label: 'Old',  icon: Lucide.Clock },
+		{ value: 'hot',  label: 'Hot',  icon: 'lucide:flame' },
+		{ value: 'new',  label: 'New',  icon: 'lucide:sparkles' },
+		{ value: 'top',  label: 'Top',  icon: 'lucide:trending-up' },
+		{ value: 'old',  label: 'Old',  icon: 'lucide:clock' },
 	];
 </script>
 
@@ -86,9 +90,9 @@
 	<!-- Breadcrumb -->
 	<nav class="breadcrumb" aria-label="Breadcrumb">
 		<a href="/">Home</a>
-		<Lucide.ChevronRight size={12} />
+		<Icon icon="lucide:chevron-right" width="12" height="12" />
 		<a href="/c/{post.community?.name ?? ''}">c/{post.community?.name ?? 'community'}</a>
-		<Lucide.ChevronRight size={12} />
+		<Icon icon="lucide:chevron-right" width="12" height="12" />
 		<span class="bc-current" aria-current="page">Post</span>
 	</nav>
 
@@ -103,7 +107,7 @@
 		<!-- Toolbar -->
 		<div class="comments-toolbar">
 			<div class="toolbar-left">
-				<Lucide.MessageSquare size={16} />
+				<Icon icon="lucide:message-square" width="16" height="16" />
 				<span class="comment-count-label">
 					{post.commentCount ?? 0}
 					{(post.commentCount ?? 0) === 1 ? 'Comment' : 'Comments'}
@@ -119,7 +123,7 @@
 							onclick={() => handleSortChange(opt.value)}
 							aria-pressed={commentSort === opt.value}
 						>
-							<svelte:component this={opt.icon} size={12} />
+							<Icon icon={opt.icon} width="12" height="12" />
 							{opt.label}
 						</button>
 					{/each}
@@ -137,7 +141,7 @@
 					aria-label="Write a comment"
 				>
 					<div class="composer-avatar" aria-hidden="true">
-						<Lucide.User size={16} />
+						<Icon icon="lucide:user" width="16" height="16" />
 					</div>
 					<span class="composer-placeholder">Add a comment…</span>
 					<span class="composer-cta-pill">Comment</span>
@@ -163,13 +167,14 @@
 						{comment}
 						postId={post.id}
 						onReply={handleReply}
+						onVote={handleVote}
 					/>
 				</div>
 			{:else}
 				<!-- Empty state -->
 				<div class="empty-state">
 					<div class="empty-icon" aria-hidden="true">
-						<Lucide.MessageSquarePlus size={44} />
+						<Icon icon="lucide:message-square-plus" width="44" height="44" />
 					</div>
 					<p class="empty-title">No comments yet</p>
 					<p class="empty-sub">Be the first to share what you think!</p>

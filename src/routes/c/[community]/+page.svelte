@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as Lucide from 'lucide-svelte';
+  import Icon from '@iconify/svelte';
   import PostCard from '$lib/component/ui/PostCard.svelte';
 
   const { data = {} } = $props<{
@@ -44,10 +44,10 @@
   let membershipRole = $state<'owner' | 'moderator' | 'member' | null>(data.membershipRole ?? null);
 
   const sortOptions = [
-    { key: 'hot',    label: 'Hot',    icon: Lucide.Flame },
-    { key: 'new',    label: 'New',    icon: Lucide.Sparkles },
-    { key: 'top',    label: 'Top',    icon: Lucide.TrendingUp },
-    { key: 'rising', label: 'Rising', icon: Lucide.Rocket },
+    { key: 'hot',    label: 'Hot',    icon: 'lucide:flame' },
+    { key: 'new',    label: 'New',    icon: 'lucide:sparkles' },
+    { key: 'top',    label: 'Top',    icon: 'lucide:trending-up' },
+    { key: 'rising', label: 'Rising', icon: 'lucide:rocket' },
   ] as const;
 
   const displayPosts = $derived(
@@ -98,11 +98,11 @@
               {#if membershipRole}
                 <span class="role-badge role-{membershipRole}">
                   {#if membershipRole === 'owner'}
-                    <Lucide.Crown size={12} /> Owner
+                    <Icon icon="lucide:crown" width="12" height="12" /> Owner
                   {:else if membershipRole === 'moderator'}
-                    <Lucide.Shield size={12} /> Mod
+                    <Icon icon="lucide:shield" width="12" height="12" /> Mod
                   {:else}
-                    <Lucide.Check size={12} /> Member
+                    <Icon icon="lucide:check" width="12" height="12" /> Member
                   {/if}
                 </span>
               {/if}
@@ -114,13 +114,13 @@
         <div class="actions">
           {#if membershipRole === 'owner' || membershipRole === 'moderator'}
             <a href="/c/{data.community.name}/settings" class="btn btn-ghost">
-              <Lucide.Settings size={13} /> Settings
+              <Icon icon="lucide:settings" width="13" height="13" /> Settings
             </a>
           {/if}
 
           {#if data.user}
             <a href="/c/{data.community.name}/submit" class="btn btn-ghost">
-              <Lucide.PenSquare size={13} /> Create Post
+              <Icon icon="lucide:pen-square" width="13" height="13" /> Create Post
             </a>
             <form method="POST" action="?/join" style="display:contents">
               <button
@@ -128,7 +128,7 @@
                 type="submit"
               >
                 {#if joined}
-                  <Lucide.Check size={14} /> Joined
+                  <Icon icon="lucide:check" width="14" height="14" /> Joined
                 {:else}
                   Join
                 {/if}
@@ -191,7 +191,7 @@
             class="sort-btn {activeSort === opt.key ? 'active' : ''}"
             onclick={() => (activeSort = opt.key)}
           >
-            <svelte:component this={opt.icon} size={14} /> {opt.label}
+            <Icon icon={opt.icon} width="14" height="14" /> {opt.label}
           </button>
         {/each}
       </div>
@@ -207,7 +207,7 @@
         </div>
       {:else}
         <div class="empty">
-          <div class="empty-icon"><Lucide.Inbox size={40} /></div>
+          <div class="empty-icon"><Icon icon="lucide:inbox" width="40" height="40" /></div>
           <h3>No posts yet</h3>
           <p>Be the first to post in c/{data.community.name}</p>
           {#if data.user}
@@ -247,7 +247,7 @@
           <div class="s-divider"></div>
 
           <div class="s-meta">
-            <Lucide.Calendar size={13} />
+            <Icon icon="lucide:calendar" width="13" height="13" />
             Created by <a href="/u/admin" class="s-link">u/admin</a>
           </div>
 
@@ -289,7 +289,7 @@
 
 {:else}
   <div class="not-found">
-    <Lucide.Ghost size={56} />
+    <Icon icon="lucide:ghost" width="56" height="56" />
     <h2>Community not found</h2>
     <p>This community doesn't exist or may have been removed.</p>
     <a href="/communities" class="btn btn-primary">Browse communities</a>

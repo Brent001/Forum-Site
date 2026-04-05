@@ -1,8 +1,9 @@
 <script lang="ts">
+  import './layout.css';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { theme } from '$lib/stores/theme';
-  import { realtime } from '$lib/stores/realtime';
+  import { theme } from '$lib/stores/theme.js';
+  import { realtime } from '$lib/stores/realtime.js';
   import Topbar from '$lib/component/ui/Topbar.svelte';
   import Sidebar from '$lib/component/ui/Sidebar.svelte';
   import RightPanel from '$lib/component/ui/RightPanel.svelte';
@@ -62,7 +63,7 @@
 
   <div class="app-body">
     {#if !isSetupOrLogin}
-      <Sidebar communities={data?.memberCommunities?.length ? data.memberCommunities : data?.communities ?? []} />
+      <Sidebar user={data?.user ?? null} communities={data?.memberCommunities?.length ? data.memberCommunities : []} />
     {/if}
 
     <main class={isSetupOrLogin ? 'setup-main' : 'app-main'}>
@@ -101,15 +102,39 @@
     --vote-up: #ff4500;
     --vote-down: #7193ff;
 
-    /* Light theme */
-    --surface: #ffffff;
-    --surface-raised: #f8f9fa;
-    --surface-overlay: #f1f3f5;
-    --border: #e5e7eb;
-    --border-hover: #d1d5db;
-    --text-primary: #111827;
-    --text-secondary: #374151;
-    --text-muted: #9ca3af;
+    /* Light theme - richer warmer colors */
+    --surface: #faf8f4;
+    --surface-raised: #f4f1eb;
+    --surface-overlay: #e9e6df;
+    --border: #d8d4ca;
+    --border-hover: #c4bfb3;
+    --text-primary: #1d1b17;
+    --text-secondary: #555249;
+    --text-muted: #86827a;
+
+    /* Pastel accents for light mode */
+    --surface-blue: #e8f0fe;
+    --surface-green: #e6f4ea;
+    --surface-yellow: #fef5d6;
+    --surface-red: #fae8e8;
+    --surface-purple: #f3edfe;
+    --surface-pink: #fae8f0;
+    --surface-orange: #fef0e4;
+    --surface-cyan: #e4f4f8;
+    --surface-teal: #e0f2ec;
+    --surface-rose: #fae8ea;
+
+    /* Colorful borders */
+    --border-blue: #a8c5f2;
+    --border-green: #a5d6a7;
+    --border-yellow: #f0d48a;
+    --border-red: #e8a5a5;
+    --border-purple: #c4a8f0;
+    --border-pink: #f0a8c4;
+    --border-orange: #f0c4a0;
+    --border-cyan: #a5d4e0;
+    --border-teal: #a5d8c8;
+    --border-rose: #e0a5ac;
   }
 
   :global([data-theme="dark"]) {
@@ -122,6 +147,24 @@
     --text-secondary: #94a3b8;
     --text-muted: #475569;
     --accent-subtle: #1e1f3a;
+
+    /* Dark pastel accents */
+    --surface-blue: #1e3a5f;
+    --surface-green: #14532d;
+    --surface-yellow: #451a03;
+    --surface-red: #450a0a;
+    --surface-purple: #2e1065;
+    --surface-pink: #500724;
+    --surface-orange: #431407;
+    --surface-cyan: #083344;
+
+    --border-blue: #1e40af;
+    --border-green: #166534;
+    --border-yellow: #b45309;
+    --border-red: #991b1b;
+    --border-purple: #7c3aed;
+    --border-pink: #be185d;
+    --border-orange: #c2410c;
   }
 
   :global(html) {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as Lucide from 'lucide-svelte';
+  import Icon from '@iconify/svelte';
   import PostCard from '$lib/component/ui/PostCard.svelte';
   import UserAvatar from '$lib/component/ui/UserAvatar.svelte';
 
@@ -121,18 +121,18 @@
     <div class="user-details">
       {#if data.user.location}
         <span class="detail-item">
-          <Lucide.MapPin size={16} />
+          <Icon icon="lucide:map-pin" width="16" height="16" />
           {data.user.location}
         </span>
       {/if}
       {#if data.user.website}
         <a href={data.user.website} target="_blank" rel="noopener noreferrer" class="detail-item">
-          <Lucide.Globe size={16} />
+          <Icon icon="lucide:globe" width="16" height="16" />
           {new URL(data.user.website).hostname}
         </a>
       {/if}
       <span class="detail-item">
-        <Lucide.Calendar size={16} />
+        <Icon icon="lucide:calendar" width="16" height="16" />
         Joined {formatDate(data.user.createdAt)}
       </span>
     </div>
@@ -174,7 +174,7 @@
     {:else}
       <div class="empty-state">
         <p>No posts yet</p>
-        <span class="empty-icon"><Lucide.FileText size={48} /></span>
+        <span class="empty-icon"><Icon icon="lucide:file-text" width="48" height="48" /></span>
       </div>
     {/if}
   </div>

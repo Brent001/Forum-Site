@@ -20,4 +20,26 @@
   --color-text-muted: var(--text-muted);
   --color-vote-up: var(--vote-up);
   --color-vote-down: var(--vote-down);
+  /* Pastel accents */
+  --color-surface-blue: var(--surface-blue);
+  --color-surface-green: var(--surface-green);
+  --color-surface-yellow: var(--surface-yellow);
+  --color-surface-red: var(--surface-red);
+  --color-surface-purple: var(--surface-purple);
+  --color-surface-pink: var(--surface-pink);
+  --color-surface-orange: var(--surface-orange);
+  --color-surface-cyan: var(--surface-cyan);
+  --color-surface-teal: var(--surface-teal);
+  --color-surface-rose: var(--surface-rose);
+  /* Colorful borders */
+  --color-border-blue: var(--border-blue);
+  --color-border-green: var(--border-green);
+  --color-border-yellow: var(--border-yellow);
+  --color-border-red: var(--border-red);
+  --color-border-purple: var(--border-purple);
+  --color-border-pink: var(--border-pink);
+  --color-border-orange: var(--border-orange);
+  --color-border-cyan: var(--border-cyan);
+  --color-border-teal: var(--border-teal);
+  --color-border-rose: var(--border-rose);
 }
