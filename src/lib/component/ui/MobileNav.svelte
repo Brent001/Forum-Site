@@ -1,19 +1,19 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import * as Lucide from 'lucide-svelte';
+  import Icon from '@iconify/svelte';
 
   let { notificationCount = 3 }: { notificationCount?: number } = $props();
 
   const tabs = [
-    { href: '/',              label: 'Home',    icon: Lucide.Home,       special: false, badge: false },
-    { href: '/popular',       label: 'Popular', icon: Lucide.TrendingUp, special: false, badge: false },
-    { href: '/submit',        label: 'Post',    icon: Lucide.Plus,       special: true,  badge: false },
-    { href: '/notifications', label: 'Alerts',  icon: Lucide.Bell,       special: false, badge: true  },
-    { href: '/u/me',          label: 'Profile', icon: Lucide.User,       special: false, badge: false },
+    { href: '/',              label: 'Home',    icon: 'lucide:home',        special: false, badge: false },
+    { href: '/popular',       label: 'Popular', icon: 'lucide:trending-up', special: false, badge: false },
+    { href: '/submit',        label: 'Post',    icon: 'lucide:plus',        special: true,  badge: false },
+    { href: '/notifications', label: 'Alerts',  icon: 'lucide:bell',        special: false, badge: true  },
+    { href: '/u/me',          label: 'Profile', icon: 'lucide:user',        special: false, badge: false },
   ];
 </script>
 
-<nav class="mobile-nav" role="navigation" aria-label="Mobile navigation">
+<nav class="mobile-nav" aria-label="Mobile navigation">
   {#each tabs as tab}
     {@const isActive = $page.url.pathname === tab.href}
     <a
@@ -25,7 +25,7 @@
       aria-current={isActive ? 'page' : undefined}
     >
       <span class="mobile-tab-icon">
-        <svelte:component this={tab.icon} size={tab.special ? 20 : 22} strokeWidth={tab.special ? 2.5 : 2} />
+        <Icon icon={tab.icon} width={tab.special ? 20 : 22} height={tab.special ? 20 : 22} />
         {#if tab.badge && notificationCount > 0}
           <span class="tab-badge">{notificationCount}</span>
         {/if}

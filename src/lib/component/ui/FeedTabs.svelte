@@ -1,16 +1,16 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import * as Lucide from 'lucide-svelte';
+  import Icon from '@iconify/svelte';
 
   let { activeSort = 'hot' }: { activeSort?: 'hot' | 'new' | 'top' | 'rising' | 'best' } = $props();
   const dispatch = createEventDispatcher();
 
   const tabs = [
-    { id: 'hot',    label: 'Hot',    icon: Lucide.Flame },
-    { id: 'new',    label: 'New',    icon: Lucide.Clock },
-    { id: 'top',    label: 'Top',    icon: Lucide.TrendingUp },
-    { id: 'rising', label: 'Rising', icon: Lucide.ArrowUpRight },
-    { id: 'best',   label: 'Best',   icon: Lucide.Star },
+    { id: 'hot',    label: 'Hot',    icon: 'lucide:flame' },
+    { id: 'new',    label: 'New',    icon: 'lucide:clock' },
+    { id: 'top',    label: 'Top',    icon: 'lucide:trending-up' },
+    { id: 'rising', label: 'Rising', icon: 'lucide:arrow-up-right' },
+    { id: 'best',   label: 'Best',   icon: 'lucide:star' },
   ] as const;
 </script>
 
@@ -21,9 +21,9 @@
       class:active={activeSort === tab.id}
       role="tab"
       aria-selected={activeSort === tab.id}
-      on:click={() => { dispatch('change', tab.id); }}
+      onclick={() => { dispatch('change', tab.id); }}
     >
-      <span class="tab-icon"><svelte:component this={tab.icon} size={15} /></span>
+      <span class="tab-icon"><Icon icon={tab.icon} width="15" height="15" /></span>
       <span class="tab-label">{tab.label}</span>
     </button>
   {/each}

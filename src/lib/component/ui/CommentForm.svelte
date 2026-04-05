@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as Lucide from 'lucide-svelte';
+  import Icon from '@iconify/svelte';
 
   let {
     postId, parentCommentId = null, placeholder = 'What are your thoughts?',
@@ -25,22 +25,43 @@
   let imageFile = $state<File | null>(null);
   let imagePreview = $state('');
   let isDragging = $state(false);
-  let fileInput: HTMLInputElement;
+  let fileInput = $state<HTMLInputElement>();
+  let gifError = $state('');
+
+  function canSubmit() {
+    const hasText = body && body.trim && body.trim().length > 0;
+    const hasImagePreview = imagePreview && imagePreview.length > 0;
+    const hasImageUrl = imageUrl && imageUrl.trim && imageUrl.trim().length > 0;
+    const hasGif = selectedGif && selectedGif.length > 0;
+    const hasLink = linkUrl && linkUrl.trim && linkUrl.trim().length > 0;
+    return hasText || hasImagePreview || hasImageUrl || hasGif || hasLink;
+  }
 
   async function searchGifs() {
     if (!gifSearch.trim()) return;
     isSearchingGifs = true;
-    await new Promise(r => setTimeout(r, 600));
-    gifResults = [
-      `https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif`,
-      `https://media.giphy.com/media/l0MYGb1LuZ3n7dRnO/giphy.gif`,
-      `https://media.giphy.com/media/xT9IgG50Lg7russbC8/giphy.gif`,
-      `https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif`,
-      `https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif`,
-      `https://media.giphy.com/media/l0HlvtIPzPdt2usKs/giphy.gif`,
-    ];
-    isSearchingGifs = false;
+    gifError = '';
+    try {
+      const res = await fetch(`/api/gifs?q=${encodeURIComponent(gifSearch)}&limit=24`);
+      const data = await res.json();
+      if (data.error) {
+        gifError = data.error;
+        gifResults = [];
+      } else if (data.gifs && data.gifs.length > 0) {
+        gifResults = data.gifs.map((g: any) => g.url);
+      } else {
+        gifResults = [];
+        gifError = 'No GIFs found';
+      }
+    } catch (e) {
+      gifError = 'Failed to search GIFs';
+      gifResults = [];
+    } finally {
+      isSearchingGifs = false;
+    }
   }
+
+  function selectGif(url: string) { selectedGif = url; gifUrl = url; }
 
   function handleImageFile(file: File) {
     if (!file.type.startsWith('image/')) return;
@@ -53,17 +74,17 @@
   function handleDrop(e: DragEvent) { e.preventDefault(); isDragging = false; const file = e.dataTransfer?.files[0]; if (file) handleImageFile(file); }
   function handleFileInput(e: Event) { const file = (e.target as HTMLInputElement).files?.[0]; if (file) handleImageFile(file); }
   function clearImage() { imageFile = null; imagePreview = ''; imageUrl = ''; }
-  function selectGif(url: string) { selectedGif = url; gifUrl = url; }
 
   async function handleSubmit() {
-    const hasContent = body.trim() || imagePreview || imageUrl || selectedGif || (linkUrl.trim());
-    if (!hasContent || isSubmitting) return;
+    if (!canSubmit() || isSubmitting) return;
     isSubmitting = true;
     try {
-      const detail: Record<string, any> = { body: body.trim(), parentCommentId };
+      const detail: Record<string, any> = { body: body?.trim() || '', parentCommentId };
       if (activeTab === 'image' && (imagePreview || imageUrl)) detail.imageUrl = imagePreview || imageUrl;
-      if (activeTab === 'gif' && selectedGif) detail.gifUrl = selectedGif;
-      if (activeTab === 'link' && linkUrl.trim()) { detail.linkUrl = linkUrl.trim(); detail.linkTitle = linkTitle.trim(); }
+      if ((selectedGif && selectedGif.length > 0) || (gifUrl && gifUrl.length > 0)) {
+        detail.gifUrl = selectedGif || gifUrl;
+      }
+      if (activeTab === 'link' && linkUrl?.trim()) { detail.linkUrl = linkUrl.trim(); if (linkTitle?.trim()) detail.linkTitle = linkTitle.trim(); }
       onSubmit?.(new CustomEvent('submit', { detail }));
       body = ''; imageFile = null; imagePreview = ''; imageUrl = ''; gifUrl = '';
       selectedGif = ''; gifResults = []; gifSearch = ''; linkUrl = ''; linkTitle = ''; activeTab = 'text';
@@ -79,23 +100,21 @@
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSubmit(); }
     else if (e.key === 'Escape') { handleCancel(); }
   }
-
-  let hasContent = $derived(body.trim().length > 0 || imagePreview.length > 0 || imageUrl.trim().length > 0 || selectedGif.length > 0 || linkUrl.trim().length > 0);
 </script>
 
 <div class="cf-root" class:compact>
   <div class="cf-tabs" role="tablist">
-    <button role="tab" class="cf-tab" class:active={activeTab === 'text'} onclick={() => activeTab = 'text'} aria-selected={activeTab === 'text'}>
-      <Lucide.AlignLeft size={14} strokeWidth={2.5} />Text
+    <button type="button" role="tab" class="cf-tab" class:active={activeTab === 'text'} onclick={() => activeTab = 'text'} aria-selected={activeTab === 'text'}>
+      <Icon icon="lucide:align-left" width="14" height="14" />Text
     </button>
-    <button role="tab" class="cf-tab" class:active={activeTab === 'image'} onclick={() => activeTab = 'image'} aria-selected={activeTab === 'image'}>
-      <Lucide.Image size={14} strokeWidth={2.5} />Image
+    <button type="button" role="tab" class="cf-tab" class:active={activeTab === 'image'} onclick={() => activeTab = 'image'} aria-selected={activeTab === 'image'}>
+      <Icon icon="lucide:image" width="14" height="14" />Image
     </button>
-    <button role="tab" class="cf-tab" class:active={activeTab === 'gif'} onclick={() => activeTab = 'gif'} aria-selected={activeTab === 'gif'}>
-      <Lucide.Film size={14} strokeWidth={2.5} />GIF
+    <button type="button" role="tab" class="cf-tab" class:active={activeTab === 'gif'} onclick={() => activeTab = 'gif'} aria-selected={activeTab === 'gif'}>
+      <Icon icon="lucide:film" width="14" height="14" />GIF
     </button>
-    <button role="tab" class="cf-tab" class:active={activeTab === 'link'} onclick={() => activeTab = 'link'} aria-selected={activeTab === 'link'}>
-      <Lucide.Link2 size={14} strokeWidth={2.5} />Link
+    <button type="button" role="tab" class="cf-tab" class:active={activeTab === 'link'} onclick={() => activeTab = 'link'} aria-selected={activeTab === 'link'}>
+      <Icon icon="lucide:link-2" width="14" height="14" />Link
     </button>
   </div>
 
@@ -114,7 +133,9 @@
         {#if imagePreview}
           <div class="cf-preview-wrap">
             <img src={imagePreview} alt="Preview" class="cf-img-preview" />
-            <button class="cf-remove-btn" onclick={clearImage} aria-label="Remove image"><Lucide.X size={14} strokeWidth={2.5} /></button>
+            <button type="button" class="cf-remove-btn" onclick={clearImage} aria-label="Remove image">
+              <Icon icon="lucide:x" width="14" height="14" />
+            </button>
           </div>
           <textarea bind:value={body} placeholder="Add a caption (optional)…" rows="2" class="cf-textarea cf-caption" onkeydown={handleKeydown}></textarea>
         {:else}
@@ -122,12 +143,12 @@
             ondragover={(e) => { e.preventDefault(); isDragging = true; }}
             ondragleave={() => isDragging = false}
             ondrop={handleDrop}
-            onclick={() => fileInput.click()}
+            onclick={() => fileInput?.click()}
             role="button" tabindex="0"
-            onkeydown={(e) => e.key === 'Enter' && fileInput.click()}
+            onkeydown={(e) => e.key === 'Enter' && fileInput?.click()}
             aria-label="Upload image"
           >
-            <Lucide.Upload size={32} strokeWidth={1.5} class="cf-drop-icon" />
+            <Icon icon="lucide:upload" width="32" height="32" class="cf-drop-icon" />
             <p class="cf-drop-title">Drop image here or <span class="cf-link-text">browse</span></p>
             <p class="cf-drop-sub">PNG, JPG, GIF, WEBP up to 20MB</p>
           </div>
@@ -141,28 +162,38 @@
       <div class="cf-gif-panel">
         <div class="cf-gif-search-row">
           <input bind:value={gifSearch} type="text" placeholder="Search GIFs…" class="cf-url-input cf-gif-input" onkeydown={(e) => e.key === 'Enter' && searchGifs()} aria-label="GIF search" />
-          <button class="cf-search-btn" onclick={searchGifs} disabled={isSearchingGifs}>
+          <button type="button" class="cf-search-btn" onclick={searchGifs} disabled={isSearchingGifs}>
             {#if isSearchingGifs}<span class="cf-spinner"></span>
-            {:else}<Lucide.Search size={14} strokeWidth={2.5} />{/if}
+            {:else}<Icon icon="lucide:search" width="14" height="14" />{/if}
           </button>
         </div>
-        {#if selectedGif}
+        {#if gifError}
+          <div class="cf-gif-error">{gifError}</div>
+        {:else if selectedGif}
           <div class="cf-preview-wrap">
             <img src={selectedGif} alt="Selected GIF" class="cf-gif-selected" />
-            <button class="cf-remove-btn" onclick={() => { selectedGif = ''; gifUrl = ''; }} aria-label="Remove GIF"><X size={14} strokeWidth={2.5} /></button>
+            <button type="button" class="cf-remove-btn" onclick={() => { selectedGif = ''; gifUrl = ''; }} aria-label="Remove GIF">
+              <Icon icon="lucide:x" width="14" height="14" />
+            </button>
           </div>
+          <textarea bind:value={body} placeholder="Add a caption (optional)…" rows="2" class="cf-textarea cf-caption" onkeydown={handleKeydown}></textarea>
         {:else if gifResults.length > 0}
           <div class="cf-gif-grid">
-            {#each gifResults as gif}
-              <button class="cf-gif-thumb" onclick={() => selectGif(gif)}>
+            {#each gifResults as gif, i}
+              <button type="button" class="cf-gif-thumb" onclick={() => selectGif(gif)} aria-label="Select GIF {i}">
                 <img src={gif} alt="GIF option" loading="lazy" />
               </button>
             {/each}
           </div>
-        {:else}
+        {:else if !isSearchingGifs}
           <div class="cf-gif-empty">
-            <Film size={28} strokeWidth={1.5} />
+            <Icon icon="lucide:film" width="28" height="28" />
             <span>Search for a GIF above</span>
+          </div>
+        {:else}
+          <div class="cf-gif-loading">
+            <span class="cf-spinner"></span>
+            <span>Searching...</span>
           </div>
         {/if}
       </div>
@@ -179,9 +210,9 @@
 
   <div class="cf-actions">
     {#if onCancel}
-      <button class="cf-btn cf-btn-cancel" onclick={handleCancel} disabled={isSubmitting}>Cancel</button>
+      <button type="button" class="cf-btn cf-btn-cancel" onclick={handleCancel} disabled={isSubmitting}>Cancel</button>
     {/if}
-    <button class="cf-btn cf-btn-submit" onclick={handleSubmit} disabled={!hasContent || isSubmitting}>
+    <button type="button" class="cf-btn cf-btn-submit" onclick={handleSubmit} disabled={!canSubmit() || isSubmitting}>
       {#if isSubmitting}<span class="cf-spinner cf-spinner-white"></span>{/if}
       {isSubmitting ? 'Posting…' : 'Post'}
     </button>
@@ -212,7 +243,8 @@
   .cf-link-text { color: var(--accent); font-weight: 600; }
   .cf-hidden-input { display: none; }
   .cf-preview-wrap { position: relative; display: inline-block; max-width: 100%; margin-bottom: 0.5rem; }
-  .cf-img-preview, .cf-gif-selected { max-width: 100%; max-height: 300px; border-radius: 6px; display: block; object-fit: contain; border: 1.5px solid var(--border); }
+  .cf-img-preview { max-width: 100%; max-height: 300px; border-radius: 6px; display: block; object-fit: contain; border: 1.5px solid var(--border); }
+  .cf-gif-selected { max-width: 100%; max-height: 300px; width: auto; height: auto; border-radius: 6px; display: block; border: 1.5px solid var(--border); }
   .cf-remove-btn { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.65); border: none; color: white; cursor: pointer; display: grid; place-items: center; transition: background 0.15s; }
   .cf-remove-btn:hover { background: rgba(0,0,0,0.85); }
   .cf-or-divider { display: flex; align-items: center; gap: 0.75rem; margin: 0.75rem 0; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
@@ -229,6 +261,8 @@
   .cf-gif-thumb:hover { border-color: var(--accent); transform: scale(1.03); }
   .cf-gif-thumb img { width: 100%; height: 100%; object-fit: cover; }
   .cf-gif-empty { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1.5rem; color: var(--text-muted); font-size: 0.8rem; border: 1.5px dashed var(--border); border-radius: 8px; margin-bottom: 0.75rem; }
+  .cf-gif-loading { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1.5rem; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.75rem; }
+  .cf-gif-error { padding: 1rem; color: #ef4444; font-size: 0.85rem; text-align: center; background: color-mix(in srgb, #ef4444 10%, transparent); border-radius: 6px; margin-bottom: 0.75rem; }
   .cf-field-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.3rem; letter-spacing: 0.02em; }
   .cf-optional { font-weight: 400; color: var(--text-muted); }
   .cf-actions { display: flex; justify-content: flex-end; gap: 0.625rem; padding: 0.625rem 1rem 0.875rem; border-top: 1px solid var(--border); margin-top: 0.25rem; }

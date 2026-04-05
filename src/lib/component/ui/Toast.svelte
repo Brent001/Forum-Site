@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade, fly } from 'svelte/transition';
   import { createEventDispatcher, onMount } from 'svelte';
+  import Icon from '@iconify/svelte';
 
   let {
     message = '',
@@ -16,11 +17,11 @@
 
   const dispatch = createEventDispatcher();
 
-  const icons = {
-    success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>`,
-    error: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
-    info: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
-    warning: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  const icons: Record<string, string> = {
+    success: 'lucide:check-circle',
+    error:   'lucide:x-circle',
+    info:    'lucide:info',
+    warning: 'lucide:alert-triangle',
   };
 
   onMount(() => {
@@ -37,12 +38,12 @@
   out:fade={{ duration: 200 }}
   role="alert"
 >
-  <span class="toast-icon">{@html icons[type]}</span>
+  <span class="toast-icon">
+    <Icon icon={icons[type]} width="18" height="18" />
+  </span>
   <p class="toast-message">{message}</p>
-  <button class="toast-dismiss" on:click={() => dispatch('dismiss', id)} aria-label="Dismiss">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-    </svg>
+  <button class="toast-dismiss" onclick={() => dispatch('dismiss', id)} aria-label="Dismiss">
+    <Icon icon="lucide:x" width="14" height="14" />
   </button>
 </div>
 
@@ -60,15 +61,14 @@
     backdrop-filter: blur(8px);
   }
   .toast-success { background: #f0fdf4; border-color: #bbf7d0; }
-  .toast-error { background: #fef2f2; border-color: #fecaca; }
-  .toast-info { background: #eff6ff; border-color: #bfdbfe; }
+  .toast-error   { background: #fef2f2; border-color: #fecaca; }
+  .toast-info    { background: #eff6ff; border-color: #bfdbfe; }
   .toast-warning { background: #fffbeb; border-color: #fde68a; }
 
   .toast-icon { display: flex; flex-shrink: 0; }
-  .toast-icon :global(svg) { width: 18px; height: 18px; }
   .toast-success .toast-icon { color: #16a34a; }
-  .toast-error .toast-icon { color: #ef4444; }
-  .toast-info .toast-icon { color: #3b82f6; }
+  .toast-error   .toast-icon { color: #ef4444; }
+  .toast-info    .toast-icon { color: #3b82f6; }
   .toast-warning .toast-icon { color: #f59e0b; }
 
   .toast-message { flex: 1; font-size: 0.875rem; font-weight: 500; color: var(--text-primary); }
@@ -80,5 +80,4 @@
     transition: all 0.1s ease; flex-shrink: 0;
   }
   .toast-dismiss:hover { background: rgba(0,0,0,0.05); }
-  .toast-dismiss :global(svg) { width: 14px; height: 14px; }
 </style>

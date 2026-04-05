@@ -12,36 +12,36 @@
   {#if variant === 'post'}
     <div class="skeleton-post">
       <div class="skel-vote">
-        <div class="skel skel-circle" style="width:28px;height:28px"/>
-        <div class="skel" style="width:24px;height:14px;border-radius:4px"/>
-        <div class="skel skel-circle" style="width:28px;height:28px"/>
+        <div class="skel skel-circle" style="width:28px;height:28px"></div>
+        <div class="skel" style="width:24px;height:14px;border-radius:4px"></div>
+        <div class="skel skel-circle" style="width:28px;height:28px"></div>
       </div>
       <div class="skel-body">
         <div class="skel-meta">
-          <div class="skel" style="width:120px;height:12px;border-radius:6px"/>
-          <div class="skel" style="width:80px;height:12px;border-radius:6px"/>
+          <div class="skel" style="width:120px;height:12px;border-radius:6px"></div>
+          <div class="skel" style="width:80px;height:12px;border-radius:6px"></div>
         </div>
-        <div class="skel" style="width:85%;height:20px;border-radius:6px;margin-bottom:8px"/>
-        <div class="skel" style="width:60%;height:20px;border-radius:6px;margin-bottom:12px"/>
-        <div class="skel" style="width:100%;height:14px;border-radius:6px;margin-bottom:6px"/>
-        <div class="skel" style="width:75%;height:14px;border-radius:6px;margin-bottom:16px"/>
+        <div class="skel" style="width:85%;height:20px;border-radius:6px;margin-bottom:8px"></div>
+        <div class="skel" style="width:60%;height:20px;border-radius:6px;margin-bottom:12px"></div>
+        <div class="skel" style="width:100%;height:14px;border-radius:6px;margin-bottom:6px"></div>
+        <div class="skel" style="width:75%;height:14px;border-radius:6px;margin-bottom:16px"></div>
         <div class="skel-actions">
           {#each [80, 72, 60] as w}
-            <div class="skel" style="width:{w}px;height:30px;border-radius:8px"/>
+            <div class="skel" style="width:{w}px;height:30px;border-radius:8px"></div>
           {/each}
         </div>
       </div>
     </div>
   {:else if variant === 'text'}
-    <div class="skel" style="width:100%;height:14px;border-radius:6px"/>
+    <div class="skel" style="width:100%;height:14px;border-radius:6px"></div>
   {:else if variant === 'avatar'}
-    <div class="skel skel-circle" style="width:36px;height:36px"/>
+    <div class="skel skel-circle" style="width:36px;height:36px"></div>
   {:else if variant === 'community'}
     <div class="skeleton-community">
-      <div class="skel skel-circle" style="width:40px;height:40px"/>
+      <div class="skel skel-circle" style="width:40px;height:40px"></div>
       <div style="flex:1">
-        <div class="skel" style="width:120px;height:14px;border-radius:6px;margin-bottom:6px"/>
-        <div class="skel" style="width:80px;height:12px;border-radius:6px"/>
+        <div class="skel" style="width:120px;height:14px;border-radius:6px;margin-bottom:6px"></div>
+        <div class="skel" style="width:80px;height:12px;border-radius:6px"></div>
       </div>
     </div>
   {/if}
@@ -55,7 +55,7 @@
     display: block;
   }
   @keyframes shimmer {
-    0% { background-position: 200% 0; }
+    0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
   }
 

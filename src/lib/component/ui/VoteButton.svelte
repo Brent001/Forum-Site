@@ -1,19 +1,20 @@
 <script lang="ts">
-  import * as Lucide from 'lucide-svelte';
+  import Icon from '@iconify/svelte';
 
   let { direction = 'up', active = false, onclick }: { direction?: 'up' | 'down'; active?: boolean; onclick?: () => void } = $props();
 </script>
 
 <button
+  type="button"
   class="vote-btn {direction}"
   class:active
   aria-label="{direction}vote"
   {onclick}
 >
   {#if direction === 'up'}
-    <Lucide.ChevronUp size={16} strokeWidth={2.5} />
+    <Icon icon="lucide:chevron-up" width="16" height="16" />
   {:else}
-    <Lucide.ChevronDown size={16} strokeWidth={2.5} />
+    <Icon icon="lucide:chevron-down" width="16" height="16" />
   {/if}
 </button>
 

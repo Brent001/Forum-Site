@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as Lucide from 'lucide-svelte';
+  import Icon from '@iconify/svelte';
 
   const { community, user } = $props<{
     community: { id: string; name: string; displayName: string; description: string; icon: string; memberCount: number; postCount: number; } | null | undefined;
@@ -34,7 +34,7 @@
         <div class="divider"></div>
 
         <div class="meta-row">
-          <Lucide.Calendar size={13} />
+          <Icon icon="lucide:calendar" width="13" height="13" />
           <span>Created by <a href="/u/admin" class="link">u/admin</a></span>
         </div>
 

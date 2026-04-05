@@ -1,8 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { fade, scale } from 'svelte/transition';
+  import Icon from '@iconify/svelte';
 
-  let { open = false, title = '', size = 'md' }: { open?: boolean; title?: string; size?: 'sm' | 'md' | 'lg' | 'xl' } = $props();
+  let { open = false, title = '', size = 'md', children, footer }: { open?: boolean; title?: string; size?: 'sm' | 'md' | 'lg' | 'xl'; children?: any; footer?: any } = $props();
 
   const dispatch = createEventDispatcher();
 
@@ -14,35 +15,37 @@
 
   onMount(() => {
     if (typeof document === 'undefined') return;
-
     document.addEventListener('keydown', handleKeydown);
     return () => document.removeEventListener('keydown', handleKeydown);
   });
 </script>
 
 {#if open}
-  <div class="modal-backdrop" transition:fade={{ duration: 150 }} on:click={close} role="dialog" aria-modal="true">
+  <div class="modal-backdrop" transition:fade={{ duration: 150 }} onclick={close} role="presentation">
     <div
       class="modal-panel size-{size}"
       transition:scale={{ duration: 200, start: 0.95 }}
-      on:click|stopPropagation
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.key === 'Enter' && e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={title ? "modal-title" : undefined}
+      tabindex="0"
     >
       {#if title}
         <div class="modal-header">
-          <h2 class="modal-title">{title}</h2>
-          <button class="modal-close" on:click={close} aria-label="Close">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+          <h2 class="modal-title" id="modal-title">{title}</h2>
+          <button class="modal-close" onclick={close} aria-label="Close">
+            <Icon icon="lucide:x" width="16" height="16" />
           </button>
         </div>
       {/if}
       <div class="modal-body">
-        <slot/>
+        {#if children}{@render children()}{/if}
       </div>
-      {#if $$slots.footer}
+      {#if footer}
         <div class="modal-footer">
-          <slot name="footer"/>
+          {@render footer()}
         </div>
       {/if}
     </div>
@@ -97,7 +100,6 @@
     transition: all 0.1s ease;
   }
   .modal-close:hover { background: var(--surface-raised); color: var(--text-primary); }
-  .modal-close svg { width: 16px; height: 16px; }
 
   .modal-body { padding: 1.25rem 1.5rem; overflow-y: auto; flex: 1; }
 

@@ -268,6 +268,10 @@ export const comments: any = pgTable(
 		
 		// Content
 		body: text('body').notNull(),
+		imageUrl: text('image_url'),
+		gifUrl: text('gif_url'),
+		linkUrl: text('link_url'),
+		linkTitle: text('link_title'),
 		
 		// Hierarchical path (materialized path pattern): "id1.id2.id3"
 		path: text('path').notNull(),

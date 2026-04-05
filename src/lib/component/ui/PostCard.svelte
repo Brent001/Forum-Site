@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import UserAvatar from './UserAvatar.svelte';
-  import * as Lucide from 'lucide-svelte';
-  import { realtime } from '$lib/stores/realtime';
+  import Icon from '@iconify/svelte';
+  import { realtime } from '$lib/stores/realtime.js';
 
   type Post = {
     id: string;
@@ -58,47 +58,29 @@
   let postUrl = $derived(postUrlProp ?? `/c/${localPost?.community?.name}/p/${localPost?.id}`);
   let showLoginPrompt = $state(false);
 
-  $effect(() => {
-    if (post) {
-      localPost = { ...post };
-    }
-  });
+  $effect(() => { if (post) { localPost = { ...post }; } });
 
   let unsubscribe: (() => void) | null = null;
 
   onMount(() => {
     if (!localPost?.id) return;
-    
     realtime.requestUpdate(localPost.id);
-    
     unsubscribe = realtime.on((event) => {
-      if ((event.type === 'post_update' || event.type === 'vote_update') && event.postId === localPost.id) {
-        const updates = event.type === 'vote_update' 
-          ? { score: event.score, userVote: event.userVote }
-          : event.updates;
-        
-        if (updates?.score !== undefined) {
-          localPost.score = updates.score;
-        }
-        if (updates?.userVote !== undefined) {
-          localPost.userVote = updates.userVote;
-        }
-        if (event.updates?.upvotes !== undefined) {
-          localPost.upvotes = event.updates.upvotes;
-        }
-        if (event.updates?.downvotes !== undefined) {
-          localPost.downvotes = event.updates.downvotes;
-        }
-        if (event.updates?.commentCount !== undefined) {
-          localPost.commentCount = event.updates.commentCount;
-        }
+      if ('postId' in event && event.postId !== localPost.id) return;
+      if (event.type === 'vote_update') {
+        localPost.score = event.score;
+        localPost.userVote = event.userVote as -1 | 0 | 1;
+      } else if (event.type === 'post_update') {
+        if (event.updates?.score !== undefined) localPost.score = event.updates.score;
+        if (event.updates?.userVote !== undefined) localPost.userVote = event.updates.userVote as -1 | 0 | 1;
+        if (event.updates?.upvotes !== undefined) localPost.upvotes = event.updates.upvotes;
+        if (event.updates?.downvotes !== undefined) localPost.downvotes = event.updates.downvotes;
+        if (event.updates?.commentCount !== undefined) localPost.commentCount = event.updates.commentCount;
       }
     });
   });
 
-  onDestroy(() => {
-    if (unsubscribe) unsubscribe();
-  });
+  onDestroy(() => { if (unsubscribe) unsubscribe(); });
 
   function toggleBookmark() { localPost.isBookmarked = !localPost.isBookmarked; }
 
@@ -106,17 +88,11 @@
     const nextVote = localPost.userVote === value ? 0 : value;
     try {
       const response = await fetch(`/api/posts/${localPost.id}/vote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: nextVote }) });
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('[Vote] Error:', error);
-        return;
-      }
+      if (!response.ok) { const error = await response.json(); console.error('[Vote] Error:', error); return; }
       const data = await response.json();
       localPost.score = data.newScore;
       localPost.userVote = data.userVote;
-    } catch (e) {
-      console.error('[Vote] Network error:', e);
-    }
+    } catch (e) { console.error('[Vote] Network error:', e); }
   }
 
   function formatScore(score: number): string {
@@ -140,10 +116,8 @@
 
   function shouldShowEmbed(url: string): boolean {
     const embedHosts = ['youtube.com', 'youtu.be', 'vimeo.com', 'twitch.tv', 'spotify.com', 'soundcloud.com'];
-    try {
-      const parsed = new URL(url);
-      return embedHosts.some(host => parsed.hostname.includes(host));
-    } catch { return false; }
+    try { const parsed = new URL(url); return embedHosts.some(host => parsed.hostname.includes(host)); }
+    catch { return false; }
   }
 
   function getEmbedUrl(url: string): string | null {
@@ -195,19 +169,13 @@
     return `${hours}h left`;
   }
 
-  function getOptionKey(index: number): string {
-    return `option_${index}`;
-  }
+  function getOptionKey(index: number): string { return `option_${index}`; }
 
   const pollEnded = $derived(localPost.pollEndsAt && toDate(localPost.pollEndsAt).getTime() < Date.now());
   const canChangeVote = $derived(localPost.pollAllowChange === true);
   const userSelectedOption = $derived(localPost.userPollVote);
   const hasVoted = $derived(userSelectedOption !== null && userSelectedOption !== undefined && userSelectedOption !== '');
-  
-  // Always show results to everyone (guests and logged-in users)
   const showResults = $derived(true);
-  
-  // Allow clicking if: hasn't voted, OR poll allows change, OR poll ended
   const canVote = $derived(!hasVoted || canChangeVote || pollEnded);
 
   function timeAgo(date: string | Date) { return getTimeAgo(date); }
@@ -217,11 +185,11 @@
   <!-- Vote Rail -->
   <div class="vote-rail">
     <button type="button" class="vote-btn up" class:active={localPost.userVote === 1} aria-label="upvote" onclick={() => handleVote(1)}>
-      <Lucide.ChevronUp size={16} strokeWidth={2.5} fill={localPost.userVote === 1 ? 'currentColor' : 'none'} />
+      <Icon icon="lucide:chevron-up" width="16" height="16" />
     </button>
     <span class="vote-score" class:positive={localPost.score > 0} class:negative={localPost.score < 0}>{formatScore(localPost.score)}</span>
     <button type="button" class="vote-btn down" class:active={localPost.userVote === -1} aria-label="downvote" onclick={() => handleVote(-1)}>
-      <Lucide.ChevronDown size={16} strokeWidth={2.5} fill={localPost.userVote === -1 ? 'currentColor' : 'none'} />
+      <Icon icon="lucide:chevron-down" width="16" height="16" />
     </button>
   </div>
 
@@ -269,7 +237,7 @@
           <span class="link-domain">{localPost.linkPreview.domain}</span>
           <span class="link-title">{localPost.linkPreview.title}</span>
         </div>
-        <Lucide.ExternalLink size={16} class="link-arrow" />
+        <Icon icon="lucide:external-link" width="16" height="16" class="link-arrow" />
       </a>
     {/if}
 
@@ -277,7 +245,7 @@
     {#if localPost.type === 'poll' && localPost.pollOptions && localPost.pollOptions.length > 0}
       <div class="poll-container">
         <div class="poll-header">
-          <Lucide.BarChart3 size={16} />
+          <Icon icon="lucide:bar-chart-3" width="16" height="16" />
           <span>Poll</span>
           {#if localPost.pollTotalVotes}
             <span class="poll-votes">{localPost.pollTotalVotes} votes</span>
@@ -307,7 +275,7 @@
           {/each}
         </div>
       </div>
-      
+
       {#if showLoginPrompt}
         <div class="poll-login-prompt">
           <a href="/login" class="poll-login-btn">Log in to vote</a>
@@ -329,22 +297,22 @@
     <!-- Actions -->
     <div class="post-actions">
       <a href="/c/{localPost.community.name}/p/{localPost.id}#comments" class="action-btn">
-        <Lucide.MessageSquare size={16} />
+        <Icon icon="lucide:message-square" width="16" height="16" />
         {localPost.commentCount} Comments
       </a>
 
       <button class="action-btn" onclick={() => navigator.share?.({ url: `/c/${localPost.community.name}/p/${localPost.id}` })}>
-        <Lucide.Share2 size={16} />
+        <Icon icon="lucide:share-2" width="16" height="16" />
         Share
       </button>
 
       <button class="action-btn" class:bookmarked={localPost.isBookmarked} onclick={toggleBookmark}>
-        <Lucide.Bookmark size={16} fill={localPost.isBookmarked ? 'currentColor' : 'none'} />
+        <Icon icon={localPost.isBookmarked ? 'lucide:bookmark' : 'lucide:bookmark'} width="16" height="16" />
         {localPost.isBookmarked ? 'Saved' : 'Save'}
       </button>
 
       <button class="action-btn more" aria-label="More post actions">
-        <Lucide.MoreHorizontal size={16} />
+        <Icon icon="lucide:more-horizontal" width="16" height="16" />
       </button>
     </div>
   </div>
@@ -352,7 +320,7 @@
 
 <style>
   .post-card { display: flex; gap: 0.75rem; padding: 0.875rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; transition: all 0.15s ease; cursor: default; }
-  .post-card:hover { border-color: var(--border-hover); box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .post-card:hover { border-color: var(--border-hover); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
   .vote-rail { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding-top: 0.125rem; flex-shrink: 0; min-width: 36px; }
   .vote-score { font-size: 0.8125rem; font-weight: 700; color: var(--text-muted); min-width: 24px; text-align: center; }
   .vote-score.positive { color: var(--vote-up); }
@@ -362,12 +330,12 @@
   .meta-community { display: flex; align-items: center; gap: 0.25rem; font-weight: 600; color: var(--text-secondary); text-decoration: none; transition: color 0.1s ease; }
   .meta-community:hover { color: var(--accent); }
   .community-badge { font-size: 0.875rem; }
-  .meta-dot { color: var(--border); }
+  .meta-dot { color: var(--text-muted); opacity: 0.5; }
   .meta-user { color: var(--text-secondary); text-decoration: none; }
   .meta-user:hover { text-decoration: underline; }
   .post-flair { font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 999px; border: 1px solid; }
   .post-tag { font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.375rem; border-radius: 4px; }
-  .post-tag.nsfw { background: #fef2f2; color: #ef4444; }
+  .post-tag.nsfw { background: var(--surface-red); color: #dc2626; border-color: var(--border-red); }
   .post-title-link { text-decoration: none; display: block; }
   .post-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); line-height: 1.4; margin: 0 0 0.5rem; transition: color 0.1s ease; }
   .post-title-link:hover .post-title { color: var(--accent); }
@@ -378,168 +346,46 @@
   .post-media.grid-3 { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
   .post-media.grid-4 { grid-template-columns: 1fr 1fr; }
   .media-img { width: 100%; height: 200px; object-fit: cover; display: block; }
-  .link-preview { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 12px; text-decoration: none; margin-bottom: 0.75rem; transition: all 0.15s ease; }
-  .link-preview:hover { border-color: var(--accent); }
+  .link-preview { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--surface-blue); border: 1px solid var(--border-blue); border-radius: 12px; text-decoration: none; margin-bottom: 0.75rem; transition: all 0.15s ease; }
+  .link-preview:hover { border-color: var(--accent); background: var(--surface); }
   .link-thumb { width: 64px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
   .link-text { flex: 1; min-width: 0; }
-  .link-domain { display: block; font-size: 0.6875rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .link-domain { display: block; font-size: 0.6875rem; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
   .link-title { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  :global(.link-arrow) { width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0; }
+  :global(.link-arrow) { color: var(--accent); flex-shrink: 0; }
   .embed-container { margin-bottom: 0.75rem; border-radius: 12px; overflow: hidden; background: var(--surface-raised); border: 1px solid var(--border); }
   .embed-iframe { width: 100%; height: 315px; border: none; display: block; }
   .post-actions { display: flex; align-items: center; gap: 0.125rem; flex-wrap: wrap; }
   .action-btn { display: flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.625rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 500; color: var(--text-muted); background: none; border: none; cursor: pointer; text-decoration: none; transition: all 0.1s ease; white-space: nowrap; font-family: inherit; }
-  .action-btn:hover { background: var(--surface-raised); color: var(--text-secondary); }
+  .action-btn:hover { background: var(--surface-overlay); color: var(--text-secondary); }
   .action-btn.bookmarked { color: var(--accent); }
   .action-btn.more { margin-left: auto; }
   .vote-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; border: none; background: none; cursor: pointer; color: var(--text-muted); transition: all 0.15s ease; }
-  .vote-btn:hover { background: var(--surface-raised); }
-  .vote-btn.up:hover { color: var(--vote-up); background: #ff450020; }
-  .vote-btn.down:hover { color: var(--vote-down); background: #7193ff20; }
-  .vote-btn.up.active { color: var(--vote-up); background: #ff450030; }
-  .vote-btn.down.active { color: var(--vote-down); background: #7193ff30; }
+  .vote-btn:hover { background: var(--surface-overlay); }
+  .vote-btn.up:hover   { color: var(--vote-up);   background: var(--surface-red); }
+  .vote-btn.down:hover { color: var(--vote-down); background: var(--surface-purple); }
+  .vote-btn.up.active   { color: var(--vote-up);   background: var(--surface-red); }
+  .vote-btn.down.active { color: var(--vote-down); background: var(--surface-purple); }
 
-  /* Poll styles */
-  .poll-container {
-    margin-bottom: 0.75rem;
-    padding: 1rem;
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-  }
-
-  .poll-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-  }
-
-  .poll-header svg {
-    color: var(--accent);
-  }
-
-  .poll-votes {
-    margin-left: auto;
-    font-weight: 500;
-    color: var(--text-muted);
-  }
-
-  .poll-timer {
-    padding: 0.25rem 0.5rem;
-    background: rgba(79, 110, 247, 0.1);
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--accent);
-  }
-
-  .poll-options {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .poll-option {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    overflow: hidden;
-    font-family: inherit;
-    text-align: left;
-  }
-
-  .poll-option:not(.voted):hover {
-    border-color: var(--accent);
-    background: var(--surface-raised);
-  }
-
-  .poll-option.selected {
-    border-color: var(--accent);
-    background: rgba(79, 110, 247, 0.08);
-  }
-
-  .poll-option.voted {
-    cursor: default;
-  }
-
-  .poll-option:disabled {
-    cursor: not-allowed;
-  }
-
-  .poll-option-bar {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    background: rgba(79, 110, 247, 0.15);
-    transition: width 0.3s ease;
-    border-radius: 7px 0 0 7px;
-  }
-
-  .poll-option.selected .poll-option-bar {
-    background: rgba(79, 110, 247, 0.25);
-  }
-
-  .poll-option-text {
-    position: relative;
-    z-index: 1;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .poll-option-percent {
-    position: relative;
-    z-index: 1;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--accent);
-  }
-
-  .poll-login-prompt {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-top: 0.5rem;
-  }
-
-  .poll-login-btn {
-    padding: 0.4rem 1rem;
-    background: var(--accent);
-    color: white;
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .poll-login-btn:hover {
-    opacity: 0.9;
-  }
-
-  .poll-login-text {
-    font-size: 0.8125rem;
-    color: var(--text-muted);
-  }
-
-  .poll-login-text a {
-    color: var(--accent);
-    text-decoration: none;
-  }
+  /* Poll */
+  .poll-container { margin-bottom: 0.75rem; padding: 1rem; background: var(--surface-yellow); border: 1px solid var(--border-yellow); border-radius: 12px; }
+  .poll-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); }
+  .poll-header :global(svg) { color: var(--accent); }
+  .poll-votes { margin-left: auto; font-weight: 500; color: var(--text-muted); }
+  .poll-timer { padding: 0.25rem 0.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: var(--accent); }
+  .poll-options { display: flex; flex-direction: column; gap: 0.5rem; }
+  .poll-option { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); cursor: pointer; transition: all 0.2s ease; overflow: hidden; font-family: inherit; text-align: left; }
+  .poll-option:not(.voted):hover { border-color: var(--accent); background: var(--surface); }
+  .poll-option.selected { border-color: var(--accent); background: var(--accent-subtle); }
+  .poll-option.voted { cursor: default; }
+  .poll-option:disabled { cursor: not-allowed; }
+  .poll-option-bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-subtle); transition: width 0.3s ease; border-radius: 7px 0 0 7px; }
+  .poll-option.selected .poll-option-bar { background: var(--accent-light); }
+  .poll-option-text { position: relative; z-index: 1; font-size: 0.875rem; font-weight: 500; color: var(--text-primary); }
+  .poll-option-percent { position: relative; z-index: 1; font-size: 0.8125rem; font-weight: 600; color: var(--accent); }
+  .poll-login-prompt { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem; background: var(--surface-yellow); border: 1px solid var(--border-yellow); border-radius: 8px; margin-top: 0.5rem; }
+  .poll-login-btn { padding: 0.4rem 1rem; background: var(--accent); color: white; border-radius: 6px; font-size: 0.8125rem; font-weight: 600; text-decoration: none; }
+  .poll-login-btn:hover { opacity: 0.9; }
+  .poll-login-text { font-size: 0.8125rem; color: var(--text-muted); }
+  .poll-login-text a { color: var(--accent); text-decoration: none; }
 </style>

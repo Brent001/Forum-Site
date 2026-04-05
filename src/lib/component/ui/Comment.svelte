@@ -1,11 +1,11 @@
 <script lang="ts">
-  import VoteButton from '$lib/component/ui/VoteButton.svelte';
   import CommentForm from '$lib/component/ui/CommentForm.svelte';
-  import * as Lucide from 'lucide-svelte';
+  import Comment from '$lib/component/ui/Comment.svelte';
+  import Icon from '@iconify/svelte';
 
   let {
-    comment, postId, depth = 0, onReply,
-  }: { comment: any; postId: string; depth?: number; onReply?: (commentId: string) => void; } = $props();
+    comment, postId, depth = 0, onReply, onVote,
+  }: { comment: any; postId: string; depth?: number; onReply?: (commentId: string) => void; onVote?: (commentId: string, newScore: number, userVote: number) => void; } = $props();
 
   let showReplyForm = $state(false);
   let collapsed = $state(false);
@@ -17,7 +17,12 @@
     isVoting = true;
     try {
       const response = await fetch(`/api/posts/${postId}/comments/${comment.id}/vote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value }) });
-      if (response.ok) { const result = await response.json(); comment.score = result.newScore; comment.userVote = result.userVote; }
+      if (response.ok) {
+        const result = await response.json();
+        comment.score = result.newScore;
+        comment.userVote = result.userVote;
+        if (onVote) onVote(comment.id, result.newScore, result.userVote);
+      }
     } catch (error) { console.error('Error voting on comment:', error); }
     finally { isVoting = false; }
   }
@@ -45,7 +50,7 @@
 
   function scoreLabel(score: number) { if (score >= 1000) return `${(score / 1000).toFixed(1)}k`; return String(score); }
 
-  const THREAD_COLORS = ['var(--thread-0)','var(--thread-1)','var(--thread-2)','var(--thread-3)','var(--thread-4)'];
+  const THREAD_COLORS = ['#7c3aed','#2563eb','#059669','#d97706','#db2777'];
   let threadColor = $derived(THREAD_COLORS[depth % THREAD_COLORS.length]);
   let isNested = $derived(depth > 0);
   let hasImage = $derived(comment.imageUrl && comment.imageUrl.length > 0);
@@ -54,99 +59,109 @@
 </script>
 
 {#if isMinimized}
-  <div class="cm-minimized" style:--thread-color={threadColor}>
-    {#if isNested}<div class="cm-thread-line minimized-line" style:background={threadColor}></div>{/if}
-    <div class="cm-min-row">
-      <button class="cm-expand-toggle" onclick={() => isMinimized = false} aria-label="Expand comment" title="Expand thread">
-        <Lucide.ChevronRight size={12} strokeWidth={2.5} />
+  <div class="flex items-center gap-0 py-[0.3rem]" style:--thread-color={threadColor}>
+    {#if isNested}<div class="w-0.5 h-5 rounded-xs shrink-0 mr-2 opacity-45" style:background={threadColor}></div>{/if}
+    <div class="flex items-center gap-2">
+      <button type="button" class="w-4.5 h-4.5 rounded bg-surface-raised border border-border cursor-pointer flex items-center justify-center text-text-muted hover:border-accent hover:text-accent transition-colors" onclick={() => isMinimized = false} aria-label="Expand comment" title="Expand thread">
+        <Icon icon="lucide:plus-circle" width="14" height="14" />
       </button>
-      <span class="cm-min-author">{comment.author.username}</span>
-      <span class="cm-min-score">{scoreLabel(comment.score)} pts</span>
-      <span class="cm-min-time">{formatTime(comment.createdAt)}</span>
+      <span class="text-[0.78rem] font-bold text-text-secondary">{comment.author.username}</span>
+      <span class="text-[0.73rem] text-text-muted">{scoreLabel(comment.score)} pts</span>
+      <span class="text-[0.73rem] text-text-muted">{formatTime(comment.createdAt)}</span>
       {#if comment.replies?.length > 0}
-        <span class="cm-min-replies">{comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}</span>
+        <span class="text-[0.73rem] text-text-muted bg-surface-raised border border-border rounded px-1 py-[0.1rem]">{comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}</span>
       {/if}
     </div>
   </div>
 {:else}
-  <div class="cm-root" class:nested={isNested}>
+  <div class="flex gap-0 py-2" class:py-[0.35rem]={isNested}>
     {#if isNested}
-      <button class="cm-thread-btn" onclick={() => isMinimized = true} aria-label="Collapse thread" title="Collapse thread" style:--thread-color={threadColor}>
-        <div class="cm-thread-line" style:background={threadColor}></div>
+      <button class="w-6 shrink-0 bg-transparent border-none p-0 cursor-pointer flex justify-center pt-8 opacity-35 hover:opacity-100 transition-opacity" onclick={() => isMinimized = true} aria-label="Collapse thread" title="Collapse thread" style:--thread-color={threadColor}>
+        <div class="w-0.5 min-h-5 rounded-xs flex-1" style:background={threadColor}></div>
       </button>
     {/if}
 
-    <div class="cm-inner">
-      <div class="cm-header">
-        <div class="cm-avatar">
+    <div class="flex-1 min-w-0 group">
+      <div class="flex items-center gap-2 mb-1">
+        <div class="w-6 h-6 shrink-0">
           {#if comment.author.avatarUrl}
-            <img src={comment.author.avatarUrl} alt={comment.author.username} class="cm-avatar-img" />
+            <img src={comment.author.avatarUrl} alt={comment.author.username} class="w-6 h-6 rounded-full object-cover" />
           {:else}
-            <div class="cm-avatar-placeholder">{comment.author.username.charAt(0).toUpperCase()}</div>
+            <div class="w-6 h-6 rounded-full bg-accent text-white text-[0.65rem] font-bold flex items-center justify-center border border-border">{(comment.author.username || '?').charAt(0).toUpperCase()}</div>
           {/if}
         </div>
 
-          <div class="cm-meta">
-            <a href="/u/{comment.author.username}" class="cm-username">{comment.author.username}</a>
-            {#if comment.isBestAnswer}<span class="cm-badge cm-badge-best"><Lucide.CheckCircle size={12} /> Best Answer</span>{/if}
-            {#if comment.author.isOP}<span class="cm-badge cm-badge-op">OP</span>{/if}
-          <span class="cm-dot">·</span>
-          <time class="cm-time" datetime={comment.createdAt} title={new Date(comment.createdAt).toLocaleString()}>{formatTime(comment.createdAt)}</time>
-          {#if comment.isEdited}<span class="cm-edited">(edited)</span>{/if}
+        <div class="flex items-center gap-[0.35rem] flex-1 min-w-0 flex-wrap">
+          <a href="/u/{comment.author.username}" class="text-[0.8rem] font-bold text-text-primary no-underline hover:text-accent transition-colors">{comment.author.username}</a>
+          {#if comment.isBestAnswer}
+            <span class="text-[0.65rem] font-bold px-1 py-[0.1rem] rounded uppercase tracking-wide bg-[#22c55e15%] text-[#16a34a] border border-[#22c55e30%] flex items-center gap-1">
+              <Icon icon="lucide:check-circle" width="12" height="12" /> Best Answer
+            </span>
+          {/if}
+          {#if comment.author.isOP}<span class="text-[0.65rem] font-bold px-1 py-[0.1rem] rounded uppercase tracking-wide bg-accent/15 text-accent border border-accent/25">OP</span>{/if}
+          <span class="text-[0.75rem] text-text-muted">·</span>
+          <time class="text-[0.75rem] text-text-muted" datetime={comment.createdAt} title={new Date(comment.createdAt).toLocaleString()}>{formatTime(comment.createdAt)}</time>
+          {#if comment.isEdited}<span class="text-[0.72rem] text-text-muted italic">(edited)</span>{/if}
         </div>
 
-        <button class="cm-collapse-btn" onclick={() => isMinimized = true} aria-label="Minimize comment" title="Minimize">
-          <Lucide.ChevronUp size={13} strokeWidth={2.5} />
+        <button class="ml-auto shrink-0 bg-transparent border-none text-text-muted cursor-pointer p-0.5 rounded flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 hover:text-text-primary transition-all" onclick={() => isMinimized = true} aria-label="Minimize comment" title="Minimize">
+          <Icon icon="lucide:minus-circle" width="14" height="14" />
         </button>
       </div>
 
       {#if comment.body}
-        <div class="cm-body">{@html comment.body.replace(/\n/g, '<br>')}</div>
+        <div class="text-[0.9rem] leading-[1.65] text-text-primary wrap-break-word mb-[0.6rem]">{@html comment.body.replace(/\n/g, '<br>')}</div>
       {/if}
 
       {#if hasImage}
-        <div class="cm-media"><img src={comment.imageUrl} alt="Attached image" class="cm-media-img" loading="lazy" /></div>
+        <div class="mb-[0.6rem] rounded-lg overflow-hidden inline-block max-w-full border border-border"><img src={comment.imageUrl} alt="" class="block max-w-full max-h-100 object-contain rounded-lg" loading="lazy" /></div>
       {/if}
 
       {#if hasGif}
-        <div class="cm-media"><img src={comment.gifUrl} alt="GIF" class="cm-media-img cm-media-gif" loading="lazy" /></div>
+        <div class="mb-[0.6rem] rounded-lg overflow-hidden inline-block max-w-full border border-border"><img src={comment.gifUrl} alt="" class="block max-w-full max-h-70 object-contain rounded-lg" loading="lazy" /></div>
       {/if}
 
       {#if hasLink}
-        <a href={comment.linkUrl} target="_blank" rel="noopener noreferrer" class="cm-link-card">
-          <div class="cm-link-icon"><Lucide.Link2 size={14} /></div>
-          <div class="cm-link-text">
-            <span class="cm-link-title">{comment.linkTitle || comment.linkUrl}</span>
-            <span class="cm-link-url">{comment.linkUrl}</span>
+        <a href={comment.linkUrl} target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 p-2 bg-surface-raised border border-border rounded-lg text-text-primary no-underline mb-[0.6rem] transition-colors hover:border-accent hover:bg-accent/4 max-w-120">
+          <div class="w-7 h-7 rounded-md bg-accent/12 text-accent flex items-center justify-center shrink-0">
+            <Icon icon="lucide:link-2" width="14" height="14" />
           </div>
-          <div class="cm-link-arrow"><Lucide.ChevronRight size={12} strokeWidth={2.5} /></div>
+          <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+            <span class="text-[0.8rem] font-semibold text-text-primary truncate overflow-hidden whitespace-nowrap">{comment.linkTitle || comment.linkUrl}</span>
+            <span class="text-[0.7rem] text-text-muted truncate overflow-hidden whitespace-nowrap">{comment.linkUrl}</span>
+          </div>
+          <div class="shrink-0 text-text-muted"><Icon icon="lucide:chevron-right" width="12" height="12" /></div>
         </a>
       {/if}
 
-      <div class="cm-actions">
-        <div class="cm-vote-cluster">
-          <VoteButton direction="up" active={comment.userVote === 1} onclick={() => handleVote(comment.userVote === 1 ? 0 : 1)} />
-          <span class="cm-score" class:positive={comment.score > 0} class:negative={comment.score < 0}>{scoreLabel(comment.score)}</span>
-          <VoteButton direction="down" active={comment.userVote === -1} onclick={() => handleVote(comment.userVote === -1 ? 0 : -1)} />
+      <div class="flex items-center gap-0 flex-wrap">
+        <div class="flex items-center gap-[0.15rem] bg-surface-raised border border-border rounded-full px-1.5 py-0.5">
+          <button type="button" class="flex items-center justify-center w-6 h-6 rounded-md border-none bg-transparent cursor-pointer text-text-muted hover:bg-surface transition-colors" class:vote-up-active={comment.userVote === 1} aria-label="upvote" onclick={() => handleVote(comment.userVote === 1 ? 0 : 1)}>
+            <Icon icon="lucide:chevron-up" width="16" height="16" />
+          </button>
+          <span class="text-[0.75rem] font-bold min-w-4.5 text-center text-text-muted" class:text-[#ef4444]={comment.score > 0} class:text-[#3b82f6]={comment.score < 0}>{scoreLabel(comment.score)}</span>
+          <button type="button" class="flex items-center justify-center w-6 h-6 rounded-md border-none bg-transparent cursor-pointer text-text-muted hover:bg-surface transition-colors" class:vote-down-active={comment.userVote === -1} aria-label="downvote" onclick={() => handleVote(comment.userVote === -1 ? 0 : -1)}>
+            <Icon icon="lucide:chevron-down" width="16" height="16" />
+          </button>
         </div>
 
-        <div class="cm-action-divider"></div>
+        <div class="w-px h-4 bg-border mx-1"></div>
 
-        <button class="cm-action-btn" onclick={() => showReplyForm = !showReplyForm} aria-expanded={showReplyForm}>
-          <Lucide.MessageSquare size={13} strokeWidth={2.5} />Reply
+        <button class="inline-flex items-center gap-1 bg-transparent border-none text-text-muted text-[0.75rem] font-bold cursor-pointer px-2 py-1.5 rounded-md font-inherit hover:bg-surface-raised hover:text-text-primary transition-colors" onclick={() => showReplyForm = !showReplyForm} aria-expanded={showReplyForm}>
+          <Icon icon="lucide:message-square" width="13" height="13" />Reply
         </button>
 
-        <button class="cm-action-btn">
-          <Lucide.Share2 size={13} strokeWidth={2.5} />Share
+        <button class="inline-flex items-center gap-1 bg-transparent border-none text-text-muted text-[0.75rem] font-bold cursor-pointer px-2 py-1.5 rounded-md font-inherit hover:bg-surface-raised hover:text-text-primary transition-colors">
+          <Icon icon="lucide:share-2" width="13" height="13" />Share
         </button>
 
-        <button class="cm-action-btn cm-overflow-btn" aria-label="More options">
-          <Lucide.MoreHorizontal size={14} strokeWidth={2.5} />
+        <button class="p-1.5 bg-transparent border-none text-text-muted cursor-pointer rounded-md hover:bg-surface-raised hover:text-text-primary transition-colors" aria-label="More options">
+          <Icon icon="lucide:more-horizontal" width="14" height="14" />
         </button>
       </div>
 
       {#if showReplyForm}
-        <div class="cm-reply-form">
+        <div class="mt-3 animate-[cm-slide-down_0.15s_ease-out]">
           <CommentForm {postId} parentCommentId={comment.id} placeholder="Reply to {comment.author.username}…" onSubmit={handleReplySubmit} onCancel={() => showReplyForm = false} compact={true} />
         </div>
       {/if}
@@ -154,85 +169,37 @@
   </div>
 
   {#if comment.replies && comment.replies.length > 0}
-    <div class="cm-replies">
+    <div class="pl-4">
       {#each comment.replies as reply (reply.id)}
-        <svelte:self comment={reply} {postId} depth={depth + 1} {onReply} />
+        <Comment comment={reply} {postId} depth={depth + 1} {onReply} />
       {/each}
     </div>
   {/if}
 {/if}
 
 <style>
+  @keyframes cm-slide-down {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   :global(:root) {
     --thread-0: #7c3aed; --thread-1: #2563eb; --thread-2: #059669;
     --thread-3: #d97706; --thread-4: #db2777;
   }
 
-  .cm-root { display: flex; gap: 0; padding: 0.5rem 0; }
-  .cm-root.nested { padding: 0.35rem 0; }
+  :global(.vote-btn:hover)       { background: var(--surface); }
+  :global(.vote-btn.up:hover)    { color: var(--vote-up);   background: #ff450020; }
+  :global(.vote-btn.down:hover)  { color: var(--vote-down); background: #7193ff20; }
+  :global(.vote-btn.up.active)   { color: var(--vote-up);   background: #ff450030; font-weight: 600; }
+  :global(.vote-btn.down.active) { color: var(--vote-down); background: #7193ff30; font-weight: 600; }
 
-  .cm-thread-btn { width: 24px; flex-shrink: 0; background: none; border: none; padding: 0; cursor: pointer; display: flex; justify-content: center; padding-top: 2rem; opacity: 0.35; transition: opacity 0.15s; }
-  .cm-thread-btn:hover { opacity: 1; }
-  .cm-thread-line { width: 2px; border-radius: 2px; min-height: 20px; flex: 1; }
+  .vote-up-active   { color: var(--vote-up)   !important; background: #ff450030 !important; font-weight: 600; }
+  .vote-down-active { color: var(--vote-down) !important; background: #7193ff30 !important; font-weight: 600; }
 
-  .cm-inner { flex: 1; min-width: 0; }
-
-  .cm-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
-
-  .cm-avatar { width: 24px; height: 24px; flex-shrink: 0; }
-  .cm-avatar-img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
-  .cm-avatar-placeholder { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: white; font-size: 0.65rem; font-weight: 700; display: grid; place-items: center; border: 1px solid var(--border); }
-
-  .cm-meta { display: flex; align-items: center; gap: 0.35rem; flex: 1; min-width: 0; flex-wrap: wrap; }
-  .cm-username { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); text-decoration: none; transition: color 0.12s; }
-  .cm-username:hover { color: var(--accent); }
-  .cm-badge { font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px; letter-spacing: 0.02em; text-transform: uppercase; }
-  .cm-badge-best { background: color-mix(in srgb, #22c55e 15%, transparent); color: #16a34a; border: 1px solid color-mix(in srgb, #22c55e 30%, transparent); }
-  .cm-badge-op { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
-  .cm-dot { color: var(--text-muted); font-size: 0.75rem; }
-  .cm-time { font-size: 0.75rem; color: var(--text-muted); }
-  .cm-edited { font-size: 0.72rem; color: var(--text-muted); font-style: italic; }
-
-  .cm-collapse-btn { margin-left: auto; flex-shrink: 0; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px; border-radius: 4px; display: grid; place-items: center; opacity: 0; transition: opacity 0.15s, color 0.15s; }
-  .cm-root:hover .cm-collapse-btn, .cm-inner:focus-within .cm-collapse-btn { opacity: 1; }
-  .cm-collapse-btn:hover { color: var(--text-primary); }
-
-  .cm-body { font-size: 0.9rem; line-height: 1.65; color: var(--text-primary); word-wrap: break-word; margin-bottom: 0.6rem; }
-  .cm-media { margin-bottom: 0.6rem; border-radius: 8px; overflow: hidden; display: inline-block; max-width: 100%; border: 1px solid var(--border); }
-  .cm-media-img { display: block; max-width: 100%; max-height: 400px; object-fit: contain; border-radius: 8px; }
-  .cm-media-gif { max-height: 280px; }
-
-  .cm-link-card { display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem 0.75rem; background: var(--surface-raised); border: 1.5px solid var(--border); border-radius: 8px; text-decoration: none; color: inherit; margin-bottom: 0.6rem; transition: border-color 0.15s, background 0.15s; max-width: 480px; }
-  .cm-link-card:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, var(--surface-raised)); }
-  .cm-link-icon { flex-shrink: 0; width: 28px; height: 28px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); display: grid; place-items: center; }
-  .cm-link-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .cm-link-title { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cm-link-url { font-size: 0.7rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cm-link-arrow { flex-shrink: 0; color: var(--text-muted); }
-
-  .cm-actions { display: flex; align-items: center; gap: 0.1rem; flex-wrap: wrap; }
-  .cm-vote-cluster { display: flex; align-items: center; gap: 0.15rem; background: var(--surface-raised); border: 1.5px solid var(--border); border-radius: 9999px; padding: 2px 6px; }
-  .cm-score { font-size: 0.75rem; font-weight: 700; min-width: 18px; text-align: center; color: var(--text-muted); }
-  .cm-score.positive { color: #ef4444; }
-  .cm-score.negative { color: #3b82f6; }
-  .cm-action-divider { width: 1px; height: 16px; background: var(--border); margin: 0 0.25rem; }
-  .cm-action-btn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; color: var(--text-muted); font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 0.35rem 0.5rem; border-radius: 6px; font-family: inherit; transition: background 0.12s, color 0.12s; letter-spacing: 0.01em; }
-  .cm-action-btn:hover { background: var(--surface-raised); color: var(--text-primary); }
-  .cm-overflow-btn { padding: 0.35rem 0.3rem; }
-
-  .cm-reply-form { margin-top: 0.75rem; animation: cm-slide-down 0.15s ease-out; }
-  @keyframes cm-slide-down { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-
-  .cm-replies { padding-left: 1.125rem; }
-
-  .cm-minimized { display: flex; align-items: center; gap: 0; padding: 0.3rem 0; }
-  .minimized-line { width: 2px; height: 20px; border-radius: 2px; opacity: 0.45; flex-shrink: 0; margin-right: 0.5rem; }
-  .cm-min-row { display: flex; align-items: center; gap: 0.5rem; }
-  .cm-expand-toggle { width: 18px; height: 18px; border-radius: 4px; background: var(--surface-raised); border: 1.5px solid var(--border); cursor: pointer; display: grid; place-items: center; color: var(--text-muted); transition: border-color 0.12s; }
-  .cm-expand-toggle:hover { border-color: var(--accent); color: var(--accent); }
-  .cm-min-author { font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); }
-  .cm-min-score, .cm-min-time, .cm-min-replies { font-size: 0.73rem; color: var(--text-muted); }
-  .cm-min-replies { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; }
-
-  @media (max-width: 600px) { .cm-replies { padding-left: 0.75rem; } .cm-thread-btn { width: 20px; } .cm-media-img { max-height: 260px; } }
+  @media (max-width: 600px) {
+    .pl-4 { padding-left: 0.75rem; }
+    :global(.cm-thread-btn) { width: 20px; }
+    :global(.cm-media-img)  { max-height: 260px; }
+  }
 </style>

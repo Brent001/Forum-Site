@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as Lucide from 'lucide-svelte';
+  import Icon from '@iconify/svelte';
 
   const { user = null, home = null, community = null } = $props<{
     user?: { username: string; avatarUrl?: string } | null;
@@ -11,12 +11,13 @@
     community?: { name: string; displayName: string; description: string; icon: string; memberCount: number; postCount: number } | null;
   }>();
 
+  // icon can be a string emoji/text OR a lucide icon name string
   const defaultTrending = [
-    { name: 'technology', displayName: 'Technology', icon: Lucide.Zap, members: 124500, growth: '+12%' },
-    { name: 'design',     displayName: 'Design',     icon: Lucide.Palette, members: 87300,  growth: '+8%'  },
-    { name: 'science',    displayName: 'Science',    icon: Lucide.FlaskConical, members: 94200,  growth: '+15%' },
-    { name: 'gaming',     displayName: 'Gaming',     icon: Lucide.Gamepad2, members: 312000, growth: '+5%'  },
-    { name: 'art',        displayName: 'Art',        icon: Lucide.Image, members: 45600,  growth: '+22%' },
+    { name: 'technology', displayName: 'Technology', icon: 'lucide:zap',           members: 124500, growth: '+12%' },
+    { name: 'design',     displayName: 'Design',     icon: 'lucide:palette',        members: 87300,  growth: '+8%'  },
+    { name: 'science',    displayName: 'Science',    icon: 'lucide:flask-conical',  members: 94200,  growth: '+15%' },
+    { name: 'gaming',     displayName: 'Gaming',     icon: 'lucide:gamepad-2',      members: 312000, growth: '+5%'  },
+    { name: 'art',        displayName: 'Art',        icon: 'lucide:image',          members: 45600,  growth: '+22%' },
   ];
 
   const siteStats = $derived(home?.siteStats ?? { members: 482193, postsToday: 1247, online: 3824 });
@@ -26,6 +27,11 @@
     if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
     if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
     return n.toString();
+  }
+
+  // Detect if an icon string is an iconify id (contains ':') or an emoji/text
+  function isIconifyId(icon: string): boolean {
+    return icon.includes(':');
   }
 </script>
 
@@ -39,7 +45,7 @@
         <p class="auth-sub">The best conversations on the internet. Sign in to get your personalized feed.</p>
         <div class="auth-btns">
           <a href="/register" class="btn btn-primary">Sign up</a>
-          <a href="/login" class="btn btn-ghost">Log in</a>
+          <a href="/login"    class="btn btn-ghost">Log in</a>
         </div>
       </div>
     </div>
@@ -75,8 +81,8 @@
         <a href="/c/{c.name}" class="trending-item">
           <span class="rank">{i + 1}</span>
           <span class="t-icon">
-            {#if typeof c.icon === 'function'}
-              <svelte:component this={c.icon} size={16} />
+            {#if isIconifyId(c.icon)}
+              <Icon icon={c.icon} width="16" height="16" />
             {:else}
               {c.icon}
             {/if}
@@ -93,7 +99,7 @@
 
   <!-- Create community -->
   <div class="card create-card">
-    <div class="create-icon"><Lucide.Globe size={24} /></div>
+    <div class="create-icon"><Icon icon="lucide:globe" width="24" height="24" /></div>
     <p class="create-title">Start a community</p>
     <p class="create-desc">Build your own space for anything you're passionate about.</p>
     <a href="/communities/create" class="btn btn-primary btn-full">Create community</a>
@@ -120,16 +126,9 @@
     top: 56px;
     max-height: calc(100vh - 56px);
     overflow-y: auto;
-    flex-shrink: 0;
   }
 
-  /* Cards */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-  }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 
   .card-header {
     display: block;
@@ -150,20 +149,10 @@
     border-bottom: 1px solid var(--border);
     background: var(--surface-raised);
   }
-  .card-header-row .card-header {
-    padding: 0;
-    border: none;
-    background: none;
-  }
-  .see-all {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--accent);
-    text-decoration: none;
-  }
+  .card-header-row .card-header { padding: 0; border: none; background: none; }
+  .see-all { font-size: 0.75rem; font-weight: 600; color: var(--accent); text-decoration: none; }
   .see-all:hover { text-decoration: underline; }
 
-  /* Buttons */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -181,109 +170,39 @@
   }
   .btn-primary { background: var(--accent); color: white; }
   .btn-primary:hover { opacity: 0.88; }
-  .btn-ghost {
-    background: var(--surface-raised);
-    color: var(--text-secondary);
-    border: 1.5px solid var(--border);
-  }
+  .btn-ghost { background: var(--surface-raised); color: var(--text-secondary); border: 1.5px solid var(--border); }
   .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
   .btn-full { width: 100%; }
 
-  /* Auth card */
   .auth-card { border: 1px solid var(--border); }
   .auth-body { padding: 1.1rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
   .auth-heading { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0; }
   .auth-sub { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin: 0; }
   .auth-btns { display: flex; gap: 0.5rem; }
 
-  /* Stats */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0;
-    padding: 0.875rem 1rem;
-  }
-  .stat-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    text-align: center;
-  }
-  .stat-item:not(:last-child) {
-    border-right: 1px solid var(--border);
-  }
-  .stat-item strong {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: var(--text-primary);
-  }
-  .stat-item span {
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-weight: 500;
-  }
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 0.875rem 1rem; }
+  .stat-item { display: flex; flex-direction: column; gap: 0.15rem; text-align: center; }
+  .stat-item:not(:last-child) { border-right: 1px solid var(--border); }
+  .stat-item strong { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); }
+  .stat-item span { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
   .online { color: #16a34a !important; }
 
-  /* Trending */
   .trending-list { padding: 0.25rem 0; }
-  .trending-item {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.5rem 1rem;
-    text-decoration: none;
-    transition: background 0.1s;
-  }
+  .trending-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 1rem; text-decoration: none; transition: background 0.1s; }
   .trending-item:hover { background: var(--surface-raised); }
-  .rank {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    width: 14px;
-    text-align: center;
-    flex-shrink: 0;
-  }
+  .rank { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); width: 14px; text-align: center; flex-shrink: 0; }
   .t-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--accent); }
   .t-info { flex: 1; min-width: 0; }
   .t-name { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
   .t-members { font-size: 0.72rem; color: var(--text-muted); }
   .t-growth { font-size: 0.75rem; font-weight: 700; color: #16a34a; white-space: nowrap; flex-shrink: 0; }
 
-  /* Create community */
-  .create-card {
-    padding: 1.1rem 1rem;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.4rem;
-  }
+  .create-card { padding: 1.1rem 1rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
   .create-icon { display: flex; align-items: center; justify-content: center; color: var(--accent); }
   .create-title { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin: 0; }
   .create-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 0.25rem; }
 
-  /* Footer */
-  .footer-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem 0.7rem;
-    padding: 0 0.25rem;
-    margin-top: 0.25rem;
-  }
-  .footer-links a {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.15s;
-  }
+  .footer-links { display: flex; flex-wrap: wrap; gap: 0.3rem 0.7rem; padding: 0 0.25rem; margin-top: 0.25rem; }
+  .footer-links a { font-size: 0.72rem; color: var(--text-muted); text-decoration: none; font-weight: 500; transition: color 0.15s; }
   .footer-links a:hover { color: var(--accent); }
-  .footer-copy {
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    padding: 0 0.25rem;
-    margin: 0;
-  }
 </style>
