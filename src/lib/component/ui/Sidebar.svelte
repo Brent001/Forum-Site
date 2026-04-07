@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import Icon from '@iconify/svelte';
+  import CommunityAvatar from '$lib/component/ui/CommunityAvatar.svelte';
 
   const { user = null, communities = [] } = $props<{ 
     user?: { username: string; avatarUrl?: string } | null;
@@ -66,7 +67,7 @@
 
   <div class="sidebar-divider"></div>
 
-  <!-- Communities - only show for logged in users -->
+  <!-- Communities -->
   {#if isLoggedIn}
     <div class="sidebar-section">
       <div class="section-header">
@@ -78,7 +79,9 @@
           {#each displayedCommunities as community}
             {@const isActive = $page.url.pathname === `/c/${community.name}`}
             <a href="/c/{community.name}" class="community-item" class:active={isActive}>
-              <span class="community-icon">{community.icon}</span>
+              <span class="community-icon">
+                <CommunityAvatar icon={community.icon} size="20px" />
+              </span>
               <div class="community-info">
                 <span class="community-name">c/{community.name}</span>
                 <span class="community-members">{formatMembers(community.members)} members</span>
@@ -94,7 +97,6 @@
       </div>
     </div>
   {:else}
-    <!-- Guest section - show for non-logged in users -->
     <div class="sidebar-section">
       <div class="section-header">
         <span>Join the Conversation</span>
@@ -107,19 +109,31 @@
     </div>
   {/if}
 
-  <!-- Footer -->
-  <div class="sidebar-footer">
-    <p>© 2025 Nexus. All rights reserved.</p>
-    <div class="footer-links">
-      <a href="/terms">Terms</a>
-      <a href="/privacy">Privacy</a>
-      <a href="/help">Help</a>
-    </div>
-  </div>
 </aside>
 
 <style>
-  .sidebar { width: 240px; height: 100vh; position: sticky; top: 0; display: flex; flex-direction: column; padding: 1rem 0.75rem; gap: 0.25rem; border-right: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  .sidebar {
+    width: 240px;
+    min-height: 0;
+    height: calc(100vh - 56px);
+    max-height: calc(100vh - 56px);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 0.75rem 1.5rem;
+    gap: 0.25rem;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .sidebar:hover {
+    scrollbar-color: var(--border) transparent;
+  }
+
   .sidebar-logo { display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem 0.75rem 1rem; }
   .logo-mark svg { width: 32px; height: 32px; }
   .logo-text { font-family: 'DM Serif Display', Georgia, serif; font-size: 1.375rem; font-weight: 400; color: var(--text-primary); letter-spacing: -0.02em; }
@@ -132,14 +146,25 @@
   .nav-item:hover .nav-icon { color: var(--accent); }
   .nav-label { flex: 1; }
   .nav-badge { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.375rem; border-radius: 999px; min-width: 18px; text-align: center; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3); }
-  .sidebar-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 0.5rem 0; }
-  .create-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1rem; background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: white; border-radius: 10px; text-decoration: none; font-size: 0.9375rem; font-weight: 600; transition: all 0.15s ease; margin: 0.25rem 0; box-shadow: 0 2px 8px var(--accent-shadow); }
+  .sidebar-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 0.5rem 0; flex-shrink: 0; }
+  .create-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1rem; background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: white; border-radius: 10px; text-decoration: none; font-size: 0.9375rem; font-weight: 600; transition: all 0.15s ease; margin: 0.25rem 0; box-shadow: 0 2px 8px var(--accent-shadow); flex-shrink: 0; }
   .create-btn:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 12px var(--accent-shadow); }
-  .sidebar-section { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+  .sidebar-section { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: visible; }
   .section-header { display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0.75rem 0.5rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); flex-shrink: 0; }
   .section-link { color: var(--accent); text-decoration: none; text-transform: none; font-weight: 500; letter-spacing: 0; }
   .section-link:hover { text-decoration: underline; }
-  .communities-list { display: flex; flex-direction: column; gap: 0.125rem; overflow-y: auto; max-height: 500px; padding-bottom: 0.5rem; }
+
+  .communities-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding-bottom: 0.5rem;
+  }
+  .communities-list:hover {
+    scrollbar-color: var(--border) transparent;
+  }
+
   .empty-state { padding: 1rem 0.75rem; border-radius: 12px; background: var(--surface-raised); color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5; border: 1px dashed var(--border); }
   .empty-state p { margin: 0 0 0.75rem; }
   .empty-link { display: inline-block; color: var(--accent); text-decoration: none; font-weight: 600; }
@@ -151,13 +176,7 @@
   .community-info { display: flex; flex-direction: column; gap: 0.0625rem; }
   .community-name { font-size: 0.875rem; font-weight: 500; color: var(--text-primary); }
   .community-members { font-size: 0.75rem; color: var(--text-muted); }
-  .sidebar-footer { padding: 0.75rem; border-top: 1px solid var(--border); margin-top: auto; }
-  .sidebar-footer p { font-size: 0.6875rem; color: var(--text-muted); margin-bottom: 0.375rem; }
-  .footer-links { display: flex; gap: 0.75rem; }
-  .footer-links a { font-size: 0.6875rem; color: var(--text-muted); text-decoration: none; }
-  .footer-links a:hover { color: var(--accent); }
 
-  /* Guest State */
   .guest-state { padding: 1rem 0.75rem; border-radius: 12px; background: var(--surface-raised); color: var(--text-secondary); font-size: 0.875rem; line-height: 1.5; border: 1px dashed var(--border); }
   .guest-state p { margin: 0 0 1rem; }
   .guest-btn-primary { display: block; width: 100%; padding: 0.5rem 1rem; background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: white; border-radius: 8px; text-decoration: none; font-size: 0.875rem; font-weight: 600; text-align: center; box-shadow: 0 2px 8px var(--accent-shadow); margin-bottom: 0.5rem; }

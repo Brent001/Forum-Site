@@ -1,5 +1,7 @@
 <script lang="ts">
   import Icon from '@iconify/svelte';
+  import CommunityAvatar from '$lib/component/ui/CommunityAvatar.svelte';
+  import { realtime } from '$lib/stores/realtime.js';
 
   const { user = null, home = null, community = null } = $props<{
     user?: { username: string; avatarUrl?: string } | null;
@@ -11,7 +13,6 @@
     community?: { name: string; displayName: string; description: string; icon: string; memberCount: number; postCount: number } | null;
   }>();
 
-  // icon can be a string emoji/text OR a lucide icon name string
   const defaultTrending = [
     { name: 'technology', displayName: 'Technology', icon: 'lucide:zap',           members: 124500, growth: '+12%' },
     { name: 'design',     displayName: 'Design',     icon: 'lucide:palette',        members: 87300,  growth: '+8%'  },
@@ -23,71 +24,69 @@
   const siteStats = $derived(home?.siteStats ?? { members: 482193, postsToday: 1247, online: 3824 });
   const trendingCommunities = $derived(home?.trendingCommunities ?? defaultTrending);
 
+  // Use real-time online count from WebSocket
+  const onlineCount = $derived($realtime.onlineCount || siteStats.online);
+
   function fmt(n: number) {
     if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
     if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
-    return n.toString();
+    return String(n);
   }
 
-  // Detect if an icon string is an iconify id (contains ':') or an emoji/text
-  function isIconifyId(icon: string): boolean {
-    return icon.includes(':');
-  }
+  function isIconifyId(icon: string) { return icon.includes(':'); }
 </script>
 
-<aside class="panel">
+<aside class="right-panel">
 
-  <!-- Auth CTA (guest only) -->
+  <!-- Auth banner (logged-out only) -->
   {#if !user}
-    <div class="card auth-card">
-      <div class="auth-body">
-        <p class="auth-heading">Join Nexus</p>
+    <div class="widget auth-widget">
+      <div class="auth-top">
+        <p class="auth-title">Join Nexus</p>
         <p class="auth-sub">The best conversations on the internet. Sign in to get your personalized feed.</p>
-        <div class="auth-btns">
-          <a href="/register" class="btn btn-primary">Sign up</a>
-          <a href="/login"    class="btn btn-ghost">Log in</a>
-        </div>
+      </div>
+      <div class="auth-actions">
+        <a href="/register" class="btn btn-primary">Sign up</a>
+        <a href="/login"    class="btn btn-ghost">Log in</a>
       </div>
     </div>
   {/if}
 
-  <!-- Site Stats -->
-  <div class="card">
-    <div class="card-header">NEXUS TODAY</div>
-    <div class="stats-grid">
-      <div class="stat-item">
+  <!-- Site stats -->
+  <div class="widget">
+    <p class="widget-label">NEXUS TODAY</p>
+    <div class="stats-row">
+      <div class="stat">
         <strong>{fmt(siteStats.members)}</strong>
         <span>Members</span>
       </div>
-      <div class="stat-item">
+      <div class="stat-sep"></div>
+      <div class="stat">
         <strong>{fmt(siteStats.postsToday)}</strong>
         <span>Posts today</span>
       </div>
-      <div class="stat-item">
-        <strong class="online">{fmt(siteStats.online)}</strong>
-        <span>Online now</span>
+      <div class="stat-sep"></div>
+      <div class="stat">
+        <strong class="online">{fmt(onlineCount)}</strong>
+        <span>Online</span>
       </div>
     </div>
   </div>
 
-  <!-- Trending Communities -->
-  <div class="card">
-    <div class="card-header-row">
-      <span class="card-header">TRENDING</span>
+  <!-- Trending communities -->
+  <div class="widget">
+    <div class="widget-header">
+      <p class="widget-label">TRENDING</p>
       <a href="/communities" class="see-all">See all</a>
     </div>
     <div class="trending-list">
       {#each trendingCommunities as c, i}
-        <a href="/c/{c.name}" class="trending-item">
-          <span class="rank">{i + 1}</span>
+        <a href="/c/{c.name}" class="trending-row">
+          <span class="t-rank">{i + 1}</span>
           <span class="t-icon">
-            {#if isIconifyId(c.icon)}
-              <Icon icon={c.icon} width="16" height="16" />
-            {:else}
-              {c.icon}
-            {/if}
+            <CommunityAvatar icon={c.icon} size="15px" />
           </span>
-          <div class="t-info">
+          <div class="t-meta">
             <span class="t-name">c/{c.name}</span>
             <span class="t-members">{fmt(c.members)} members</span>
           </div>
@@ -97,112 +96,137 @@
     </div>
   </div>
 
-  <!-- Create community -->
-  <div class="card create-card">
-    <div class="create-icon"><Icon icon="lucide:globe" width="24" height="24" /></div>
-    <p class="create-title">Start a community</p>
-    <p class="create-desc">Build your own space for anything you're passionate about.</p>
-    <a href="/communities/create" class="btn btn-primary btn-full">Create community</a>
+  <!-- Create community CTA -->
+  <div class="widget cta-widget">
+    <div class="cta-icon"><Icon icon="lucide:globe" width="22" height="22" /></div>
+    <p class="cta-title">Start a community</p>
+    <p class="cta-sub">Build your own space for anything you're passionate about.</p>
+    <a href="/communities/create" class="btn btn-primary btn-block">Create community</a>
   </div>
 
   <!-- Footer links -->
-  <div class="footer-links">
-    {#each ['Help', 'Guidelines', 'Privacy', 'Terms', 'Advertise'] as link}
-      <a href="/{link.toLowerCase()}">{link}</a>
+  <nav class="panel-footer">
+    {#each ['Help', 'Guidelines', 'Privacy', 'Terms', 'Advertise'] as lnk}
+      <a href="/{lnk.toLowerCase()}">{lnk}</a>
     {/each}
-  </div>
+    <span class="footer-year">© 2025 Nexus</span>
+  </nav>
 
 </aside>
 
 <style>
-  .panel {
-    width: 340px;
+  /* ── Panel shell ──
+     Fixed width, full height of the flex row.
+     Scrolls independently when hovered.
+  ── */
+  .right-panel {
+    width: 320px;
     flex-shrink: 0;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 12px 16px 8px;
     display: flex;
     flex-direction: column;
-    gap: 0.125rem;
-    padding: 0.5rem 0.75rem 0 0;
-    position: sticky;
-    top: 56px;
-    max-height: calc(100vh - 56px);
-    overflow-y: auto;
+    gap: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.2s;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
   }
+  .right-panel:hover { scrollbar-color: var(--border) transparent; }
+  .right-panel::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
+  .right-panel:hover::-webkit-scrollbar-thumb { background: var(--border); }
 
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-
-  .card-header {
-    display: block;
-    padding: 0.65rem 1rem;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.07em;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
+  /* ── Widget card ── */
+  .widget {
     background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    flex-shrink: 0;
   }
-
-  .card-header-row {
+  .widget-label {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .widget-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.65rem 1rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface-raised);
+    margin-bottom: 6px;
   }
-  .card-header-row .card-header { padding: 0; border: none; background: none; }
-  .see-all { font-size: 0.75rem; font-weight: 600; color: var(--accent); text-decoration: none; }
+  .widget-header .widget-label { margin-bottom: 0; }
+  .see-all { font-size: 0.78rem; font-weight: 600; color: var(--accent); text-decoration: none; }
   .see-all:hover { text-decoration: underline; }
 
+  /* ── Auth widget ── */
+  .auth-widget { background: linear-gradient(135deg, var(--accent-subtle) 0%, var(--surface-raised) 100%); border-color: var(--border-blue); }
+  .auth-top   { margin-bottom: 14px; }
+  .auth-title { font-size: 1rem; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; }
+  .auth-sub   { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.55; }
+  .auth-actions { display: flex; gap: 8px; }
+
+  /* ── Buttons ── */
   .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.48rem 1rem;
-    border-radius: 9999px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    text-decoration: none;
-    border: none;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.15s;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0.45rem 1.1rem;
+    border-radius: 999px;
+    font-size: 0.84rem; font-weight: 700;
+    text-decoration: none; border: none; cursor: pointer;
+    font-family: inherit; transition: opacity 0.13s, background 0.13s;
     white-space: nowrap;
   }
   .btn-primary { background: var(--accent); color: white; }
-  .btn-primary:hover { opacity: 0.88; }
-  .btn-ghost { background: var(--surface-raised); color: var(--text-secondary); border: 1.5px solid var(--border); }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-ghost  { background: transparent; color: var(--text-primary); border: 1.5px solid var(--border); }
   .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-full { width: 100%; }
+  .btn-block  { width: 100%; margin-top: 4px; }
 
-  .auth-card { border: 1px solid var(--border); }
-  .auth-body { padding: 1.1rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
-  .auth-heading { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0; }
-  .auth-sub { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin: 0; }
-  .auth-btns { display: flex; gap: 0.5rem; }
-
-  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 0.875rem 1rem; }
-  .stat-item { display: flex; flex-direction: column; gap: 0.15rem; text-align: center; }
-  .stat-item:not(:last-child) { border-right: 1px solid var(--border); }
-  .stat-item strong { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); }
-  .stat-item span { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
+  /* ── Stats ── */
+  .stats-row { display: flex; align-items: center; gap: 0; }
+  .stat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .stat strong { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); }
+  .stat span   { font-size: 0.67rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
+  .stat-sep    { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
   .online { color: #16a34a !important; }
 
-  .trending-list { padding: 0.25rem 0; }
-  .trending-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 1rem; text-decoration: none; transition: background 0.1s; }
-  .trending-item:hover { background: var(--surface-raised); }
-  .rank { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); width: 14px; text-align: center; flex-shrink: 0; }
-  .t-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--accent); }
-  .t-info { flex: 1; min-width: 0; }
-  .t-name { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
-  .t-members { font-size: 0.72rem; color: var(--text-muted); }
-  .t-growth { font-size: 0.75rem; font-weight: 700; color: #16a34a; white-space: nowrap; flex-shrink: 0; }
+  /* ── Trending ── */
+  .trending-list { display: flex; flex-direction: column; margin-top: 4px; }
+  .trending-row  {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 6px; border-radius: 10px;
+    text-decoration: none; transition: background 0.1s;
+  }
+  .trending-row:hover { background: var(--surface-overlay); }
+  .t-rank    { font-size: 0.7rem; font-weight: 800; color: var(--text-muted); width: 14px; text-align: center; flex-shrink: 0; }
+  .t-icon    { display: flex; align-items: center; justify-content: center; color: var(--accent); width: 22px; flex-shrink: 0; }
+  .t-meta    { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .t-name    { font-size: 0.84rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t-members { font-size: 0.7rem; color: var(--text-muted); }
+  .t-growth  { font-size: 0.73rem; font-weight: 700; color: #16a34a; white-space: nowrap; flex-shrink: 0; }
 
-  .create-card { padding: 1.1rem 1rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
-  .create-icon { display: flex; align-items: center; justify-content: center; color: var(--accent); }
-  .create-title { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin: 0; }
-  .create-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 0.25rem; }
+  /* ── CTA widget ── */
+  .cta-widget { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .cta-icon  { color: var(--accent); display: flex; align-items: center; justify-content: center; }
+  .cta-title { font-size: 0.92rem; font-weight: 800; color: var(--text-primary); }
+  .cta-sub   { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
 
-  .footer-links { display: flex; flex-wrap: wrap; gap: 0.3rem 0.7rem; padding: 0 0.25rem; margin-top: 0.25rem; }
-  .footer-links a { font-size: 0.72rem; color: var(--text-muted); text-decoration: none; font-weight: 500; transition: color 0.15s; }
-  .footer-links a:hover { color: var(--accent); }
+  /* ── Footer ── */
+  .panel-footer {
+    display: flex; flex-wrap: wrap; gap: 5px 10px;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+  .panel-footer a {
+    font-size: 0.7rem; color: var(--text-muted); text-decoration: none; font-weight: 500;
+    transition: color 0.13s;
+  }
+  .panel-footer a:hover { color: var(--accent); }
+  .footer-year { font-size: 0.7rem; color: var(--text-muted); }
 </style>

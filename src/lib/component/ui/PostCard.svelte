@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { browser } from '$app/environment';
   import UserAvatar from './UserAvatar.svelte';
+  import CommunityAvatar from './CommunityAvatar.svelte';
+  import EditPostModal from './EditPostModal.svelte';
   import Icon from '@iconify/svelte';
   import { realtime } from '$lib/stores/realtime.js';
 
@@ -8,11 +11,11 @@
     id: string;
     type: 'text' | 'link' | 'image' | 'video' | 'poll';
     title: string;
-    body: string;
+    body: string | null;
     mediaUrls: string[];
-    linkUrl: string;
+    linkUrl: string | null;
     linkPreview: { title: string; description: string; image: string; domain: string } | null;
-    author: { username: string; avatarUrl: string };
+    author: { id?: string; username: string; avatarUrl: string };
     community: { name: string; displayName: string; icon: string };
     upvotes: number;
     downvotes: number;
@@ -21,8 +24,10 @@
     createdAt: string | Date;
     isNsfw: boolean;
     isSpoiler: boolean;
-    flair: string;
-    flairColor: string;
+    isEdited: boolean;
+    isDeleted?: boolean;
+    flair: string | null;
+    flairColor: string | null;
     userVote: -1 | 0 | 1;
     isBookmarked: boolean;
     pollOptions?: string[] | null;
@@ -38,27 +43,36 @@
     return typeof value === 'string' ? new Date(value) : value;
   }
 
-  let { post: postProp, compact = false, postUrl: postUrlProp } = $props<{ post?: Post; compact?: boolean; postUrl?: string; }>();
+  let { post: postProp, compact = false, postUrl: postUrlProp, currentUser = null } = $props<{ post?: Post; compact?: boolean; postUrl?: string; currentUser?: { id: string; username: string; email: string } | null; }>();
 
   const defaultPost: Post = {
     id: '1', type: 'text',
     title: 'The future of AI-powered developer tools',
     body: 'A deep dive into how language models are reshaping the way we write, debug, and ship software.',
     mediaUrls: [], linkUrl: '', linkPreview: null,
-    author: { username: 'threedots', avatarUrl: '' },
+    author: { id: '1', username: 'threedots', avatarUrl: '' },
     community: { name: 'technology', displayName: 'Technology', icon: '⚡' },
     upvotes: 1284, downvotes: 43, score: 1241, commentCount: 87,
     createdAt: new Date(Date.now() - 3600000 * 2),
-    isNsfw: false, isSpoiler: false, flair: 'Discussion', flairColor: '#3b82f6',
+    isNsfw: false, isSpoiler: false, isEdited: false, flair: 'Discussion', flairColor: '#3b82f6',
     userVote: 0, isBookmarked: false,
   };
 
-  let post = $derived(postProp ?? defaultPost);
-  let localPost = $state<Post>(post);
-  let postUrl = $derived(postUrlProp ?? `/c/${localPost?.community?.name}/p/${localPost?.id}`);
-  let showLoginPrompt = $state(false);
+  let localPost = $state<Post>(structuredClone(defaultPost));
+  let postUrl = $state('');
 
-  $effect(() => { if (post) { localPost = { ...post }; } });
+  $effect(() => {
+    localPost = structuredClone(postProp ?? defaultPost);
+  });
+
+  $effect(() => {
+    postUrl = postUrlProp ?? `/c/${localPost?.community?.name}/p/${localPost?.id}`;
+  });
+
+  let showMoreMenu = $state(false);
+  let showDeleteConfirm = $state(false);
+  let showLoginPrompt = $state(false);
+  let showEditModal = $state(false);
 
   let unsubscribe: (() => void) | null = null;
 
@@ -78,11 +92,25 @@
         if (event.updates?.commentCount !== undefined) localPost.commentCount = event.updates.commentCount;
       }
     });
+
+    // Add click outside listener only in browser
+    if (browser) {
+      document.addEventListener('click', handleClickOutside);
+    }
   });
 
-  onDestroy(() => { if (unsubscribe) unsubscribe(); });
+  onDestroy(() => { 
+    if (unsubscribe) unsubscribe();
+    if (browser) {
+      document.removeEventListener('click', handleClickOutside);
+    }
+  });
 
   function toggleBookmark() { localPost.isBookmarked = !localPost.isBookmarked; }
+
+  function startEdit() {
+    showEditModal = true;
+  }
 
   async function handleVote(value: -1 | 0 | 1) {
     const nextVote = localPost.userVote === value ? 0 : value;
@@ -114,15 +142,23 @@
     return 'just now';
   }
 
-  function shouldShowEmbed(url: string): boolean {
+  function shouldShowEmbed(url: string | null): boolean {
+    if (typeof url !== 'string') return false;
     const embedHosts = ['youtube.com', 'youtu.be', 'vimeo.com', 'twitch.tv', 'spotify.com', 'soundcloud.com'];
-    try { const parsed = new URL(url); return embedHosts.some(host => parsed.hostname.includes(host)); }
-    catch { return false; }
+    const safeUrl = url;
+    try {
+      const parsed = new URL(safeUrl);
+      return embedHosts.some(host => parsed.hostname.includes(host));
+    } catch {
+      return false;
+    }
   }
 
-  function getEmbedUrl(url: string): string | null {
+  function getEmbedUrl(url: string | null): string | null {
+    if (!url) return null;
+    const safeUrl = url;
     try {
-      const parsed = new URL(url);
+      const parsed = new URL(safeUrl);
       if (parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be')) {
         const videoId = parsed.searchParams.get('v') || parsed.pathname.split('/').pop();
         return `https://www.youtube.com/embed/${videoId}`;
@@ -179,6 +215,56 @@
   const canVote = $derived(!hasVoted || canChangeVote || pollEnded);
 
   function timeAgo(date: string | Date) { return getTimeAgo(date); }
+
+  function toggleMoreMenu(event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    showMoreMenu = !showMoreMenu;
+  }
+
+  // Close menu when clicking outside
+  function handleClickOutside(event: MouseEvent) {
+    if (showMoreMenu && event.target && !(event.target as Element).closest('.more-menu') && !(event.target as Element).closest('.action-btn.more')) {
+      showMoreMenu = false;
+    }
+  }
+
+  async function deletePost() {
+    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/posts/${localPost.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        alert('Post deleted successfully');
+        showMoreMenu = false;
+        localPost.isDeleted = true;
+      } else if (response.status === 401) {
+        alert('You must be logged in to delete');
+      } else if (response.status === 403) {
+        alert('You do not have permission to delete this post');
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error || 'Failed to delete post'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      alert('Failed to delete post');
+    }
+  }
+
+  function reportPost() {
+    // For now, just show an alert. In a real app, you'd open a report modal
+    alert('Report functionality coming soon!');
+  }
 </script>
 
 <article class="post-card" class:compact={compact}>
@@ -198,16 +284,21 @@
     <!-- Meta -->
     <div class="post-meta">
       <a href="/c/{localPost.community.name}" class="meta-community">
-        <span class="community-badge">{localPost.community.icon}</span>
+        <CommunityAvatar icon={localPost.community.icon} size="sm" name={localPost.community.name} />
         c/{localPost.community.name}
       </a>
       <span class="meta-dot">·</span>
       <span class="meta-author">Posted by <a href="/u/{localPost.author.username}" class="meta-user">u/{localPost.author.username}</a></span>
       <span class="meta-dot">·</span>
       <span class="meta-time">{timeAgo(localPost.createdAt)}</span>
+      {#if localPost.isEdited}
+        <span class="meta-dot">·</span>
+        <span class="meta-edited">edited</span>
+      {/if}
       {#if localPost.flair}
         <span class="meta-dot">·</span>
-        <span class="post-flair" style="background: {localPost.flairColor}22; color: {localPost.flairColor}; border-color: {localPost.flairColor}44">{localPost.flair}</span>
+        {@const flairColor = localPost.flairColor || '#7c3aed'}
+        <span class="post-flair" style="background: {flairColor}22; color: {flairColor}; border-color: {flairColor}44">{localPost.flair}</span>
       {/if}
       {#if localPost.isNsfw}<span class="post-tag nsfw">NSFW</span>{/if}
     </div>
@@ -301,22 +392,98 @@
         {localPost.commentCount} Comments
       </a>
 
-      <button class="action-btn" onclick={() => navigator.share?.({ url: `/c/${localPost.community.name}/p/${localPost.id}` })}>
+      <button type="button" class="action-btn" onclick={() => navigator.share?.({ url: `/c/${localPost.community.name}/p/${localPost.id}` })}>
         <Icon icon="lucide:share-2" width="16" height="16" />
         Share
       </button>
 
-      <button class="action-btn" class:bookmarked={localPost.isBookmarked} onclick={toggleBookmark}>
-        <Icon icon={localPost.isBookmarked ? 'lucide:bookmark' : 'lucide:bookmark'} width="16" height="16" />
-        {localPost.isBookmarked ? 'Saved' : 'Save'}
-      </button>
+      {#if !showEditModal}
+        <button type="button" class="action-btn" class:bookmarked={localPost.isBookmarked} onclick={toggleBookmark}>
+          <Icon icon={localPost.isBookmarked ? 'lucide:bookmark' : 'lucide:bookmark'} width="16" height="16" />
+          {localPost.isBookmarked ? 'Saved' : 'Save'}
+        </button>
+      {/if}
 
-      <button class="action-btn more" aria-label="More post actions">
+      <button type="button" class="action-btn more" onclick={toggleMoreMenu} aria-label="More post actions">
         <Icon icon="lucide:more-horizontal" width="16" height="16" />
       </button>
+
+      <!-- More Menu Dropdown -->
+      {#if showMoreMenu}
+        <div class="more-menu">
+          {#if browser}
+            {@const user = currentUser || (window.localStorage?.getItem('user') ? JSON.parse(window.localStorage?.getItem('user') || '{}') : null)}
+            {@const authorId = localPost.author?.id}
+            {@const authorUsername = localPost.author?.username?.toLowerCase()?.trim() ?? ''}
+            {@const currentId = user?.id}
+            {@const currentUsername = user?.username?.toLowerCase()?.trim() ?? ''}
+            {@const isAuthor = Boolean((authorId && currentId && authorId === currentId) || (authorUsername && currentUsername && authorUsername === currentUsername))}
+            {#if isAuthor}
+              <button type="button" class="menu-item edit" onclick={() => { startEdit(); showMoreMenu = false; }}>
+                <Icon icon="lucide:edit" width="16" height="16" />
+                Edit Post
+              </button>
+              <div class="menu-divider"></div>
+              <button type="button" class="menu-item delete" onclick={deletePost}>
+                <Icon icon="lucide:trash-2" width="16" height="16" />
+                Delete Post
+              </button>
+            {:else if user}
+              <button type="button" class="menu-item delete" onclick={deletePost}>
+                <Icon icon="lucide:trash-2" width="16" height="16" />
+                Delete Post
+              </button>
+            {/if}
+          {/if}
+          <button type="button" class="menu-item report" onclick={reportPost}>
+            <Icon icon="lucide:flag" width="16" height="16" />
+            Report Post
+          </button>
+        </div>
+      {/if}
     </div>
   </div>
 </article>
+
+<!-- Edit Modal -->
+<EditPostModal 
+  post={localPost} 
+  open={showEditModal} 
+  onSave={async (data) => {
+    try {
+      const response = await fetch(`/api/posts/${localPost.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        localPost = {
+          ...localPost,
+          ...data,
+          body: data.body ?? localPost.body,
+          linkUrl: data.linkUrl ?? localPost.linkUrl,
+          flair: data.flair ?? localPost.flair,
+          flairColor: data.flairColor ?? localPost.flairColor,
+          isEdited: true,
+        };
+        showEditModal = false;
+        alert('Post updated successfully!');
+      } else if (response.status === 401) {
+        alert('You must be logged in to edit');
+      } else if (response.status === 403) {
+        alert('You can only edit your own posts');
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error || 'Failed to update post'}`);
+      }
+    } catch (error) {
+      console.error('Error editing post:', error);
+      alert('Failed to update post');
+    }
+  }} 
+  onClose={() => showEditModal = false} 
+/>
 
 <style>
   .post-card { display: flex; gap: 0.75rem; padding: 0.875rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; transition: all 0.15s ease; cursor: default; }
@@ -329,10 +496,11 @@
   .post-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem 0.375rem; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.375rem; }
   .meta-community { display: flex; align-items: center; gap: 0.25rem; font-weight: 600; color: var(--text-secondary); text-decoration: none; transition: color 0.1s ease; }
   .meta-community:hover { color: var(--accent); }
-  .community-badge { font-size: 0.875rem; }
+  .meta-community :global(.community-avatar) { width: 20px; height: 20px; }
   .meta-dot { color: var(--text-muted); opacity: 0.5; }
   .meta-user { color: var(--text-secondary); text-decoration: none; }
   .meta-user:hover { text-decoration: underline; }
+  .meta-edited { font-size: 0.6875rem; color: var(--text-muted); font-style: italic; }
   .post-flair { font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 999px; border: 1px solid; }
   .post-tag { font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.375rem; border-radius: 4px; }
   .post-tag.nsfw { background: var(--surface-red); color: #dc2626; border-color: var(--border-red); }
@@ -355,11 +523,12 @@
   :global(.link-arrow) { color: var(--accent); flex-shrink: 0; }
   .embed-container { margin-bottom: 0.75rem; border-radius: 12px; overflow: hidden; background: var(--surface-raised); border: 1px solid var(--border); }
   .embed-iframe { width: 100%; height: 315px; border: none; display: block; }
-  .post-actions { display: flex; align-items: center; gap: 0.125rem; flex-wrap: wrap; }
+  .post-actions { display: flex; align-items: center; gap: 0.125rem; flex-wrap: wrap; position: relative; }
   .action-btn { display: flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.625rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 500; color: var(--text-muted); background: none; border: none; cursor: pointer; text-decoration: none; transition: all 0.1s ease; white-space: nowrap; font-family: inherit; }
   .action-btn:hover { background: var(--surface-overlay); color: var(--text-secondary); }
   .action-btn.bookmarked { color: var(--accent); }
-  .action-btn.more { margin-left: auto; }
+  .action-btn.edit-save { color: var(--accent); font-weight: 600; }
+  .action-btn.edit-cancel { color: var(--text-muted); }
   .vote-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; border: none; background: none; cursor: pointer; color: var(--text-muted); transition: all 0.15s ease; }
   .vote-btn:hover { background: var(--surface-overlay); }
   .vote-btn.up:hover   { color: var(--vote-up);   background: var(--surface-red); }
@@ -388,4 +557,16 @@
   .poll-login-btn:hover { opacity: 0.9; }
   .poll-login-text { font-size: 0.8125rem; color: var(--text-muted); }
   .poll-login-text a { color: var(--accent); text-decoration: none; }
+
+  /* More Menu */
+  .more-menu { position: absolute; left: 50%; transform: translateX(-50%); bottom: 100%; z-index: 1000; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); min-width: 180px; margin-bottom: 0.5rem; overflow: hidden; }
+  .menu-item { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem 1rem; border: none; background: none; color: var(--text-primary); font-size: 0.875rem; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.15s ease; }
+  .menu-item:hover { background: var(--surface-overlay); }
+  .menu-item.edit { color: var(--accent); }
+  .menu-item.edit:hover { background: var(--surface); }
+  .menu-item.delete { color: var(--error); }
+  .menu-item.delete:hover { background: var(--surface-red); color: var(--error); }
+  .menu-item.report { color: var(--text-secondary); }
+  .menu-item.report:hover { background: var(--surface-overlay); color: var(--text-primary); }
+  .menu-divider { height: 1px; background: var(--border); margin: 0.25rem 0; }
 </style>

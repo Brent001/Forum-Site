@@ -115,10 +115,18 @@ export const communities = pgTable(
 		icon: text('icon'),
 		banner: text('banner'),
 		logoUrl: text('logo_url'),
+		themeColor: text('theme_color').default('#4f46e5'),
 		
 		// Settings
 		isPrivate: boolean('is_private').notNull().default(false),
 		nsfw: boolean('nsfw').notNull().default(false),
+		requireApproval: boolean('require_approval').notNull().default(false),
+		restrictPosting: boolean('restrict_posting').notNull().default(false),
+		hideDiscovery: boolean('hide_discovery').notNull().default(false),
+		archived: boolean('archived').notNull().default(false),
+		allowLinks: boolean('allow_links').notNull().default(true),
+		allowMedia: boolean('allow_media').notNull().default(true),
+		allowPolls: boolean('allow_polls').notNull().default(true),
 		rules: json('rules').$type<Array<{ title: string; description: string }>>(),
 		
 		// Stats
@@ -229,6 +237,7 @@ export const posts = pgTable(
 		
 		// Flags
 		isDeleted: boolean('is_deleted').notNull().default(false),
+		isEdited: boolean('is_edited').notNull().default(false),
 		isPinned: boolean('is_pinned').notNull().default(false),
 		isLocked: boolean('is_locked').notNull().default(false),
 		
