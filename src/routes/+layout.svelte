@@ -41,23 +41,19 @@
   let toastContainer = $state<ToastContainer>();
 
   // Page state - use browser location for client-side routing
-  let currentPath = $state('/');
+  let currentPath = $derived($page.url.pathname);
   let isSetupOrLogin = $derived(
-    currentPath.startsWith('/setup') || 
-    currentPath.startsWith('/login') || 
+    currentPath.startsWith('/setup') ||
+    currentPath.startsWith('/login') ||
     currentPath.startsWith('/register')
   );
   let isHomePage = $derived(currentPath === '/');
-  // Update current path and reconnect realtime when it changes
+
   $effect(() => {
     if (typeof window !== 'undefined') {
-      const newPath = window.location.pathname;
-      currentPath = newPath;
-      
-      // Extract community from path and connect
-      const match = newPath.match(/^\/c\/([^\/]+)/);
+      const match = currentPath.match(/^\/c\/([^\/]+)/);
       const community = match ? match[1] : null;
-      
+
       if (community) {
         realtime.connect(community);
       } else {
