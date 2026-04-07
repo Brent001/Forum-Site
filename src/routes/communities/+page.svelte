@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CommunityAvatar from '$lib/component/ui/CommunityAvatar.svelte';
   const { data = {} } = $props<{
     data?: {
       communities?: Array<{
@@ -10,6 +11,8 @@
         description?: string;
         members: number;
         postCount: number;
+        nsfw?: boolean;
+        archived?: boolean;
       }>;
     };
   }>();
@@ -61,9 +64,17 @@
             class="community-banner-card"
             style={community.banner ? `background-image: url('${community.banner}');` : ''}
           ></div>
-          <div class="community-icon">{community.icon}</div>
+          <CommunityAvatar icon={community.icon} size="md" name={community.name} />
           <div class="community-content">
-            <strong>c/{community.name}</strong>
+            <div class="community-header">
+              <strong>c/{community.name}</strong>
+              {#if community.nsfw}
+                <span class="community-badge nsfw">NSFW</span>
+              {/if}
+              {#if community.archived}
+                <span class="community-badge archived">Archived</span>
+              {/if}
+            </div>
             <span>{community.displayName}</span>
             {#if community.description}
               <p class="community-description">{community.description}</p>
@@ -99,7 +110,7 @@
   .community-card:hover { transform: translateY(-2px); border-color: var(--border-hover); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
   .community-banner-card { position: absolute; inset: 0; opacity: 0.12; background-size: cover; background-position: center; }
   .community-card:hover .community-banner-card { opacity: 0.2; }
-  .community-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 1rem; background: var(--surface-raised); font-size: 1.4rem; z-index: 1; }
+  .community-card :global(.community-avatar) { z-index: 1; }
   .community-content { display: flex; flex-direction: column; gap: 0.25rem; z-index: 1; }
   .community-description { margin: 0; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.3; }
   .community-content strong { font-size: 1rem; }
@@ -107,4 +118,12 @@
   .community-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem; }
   .empty-state { grid-column: 1 / -1; padding: 2rem; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
   .empty-state p { font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 1rem; }
+
+  .community-header { display: flex; align-items: center; gap: 0.5rem; }
+  .community-badge {
+    padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.65rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .community-badge.nsfw { background: #fef2f2; color: #dc2626; }
+  .community-badge.archived { background: #fef3c7; color: #d97706; }
 </style>

@@ -90,7 +90,7 @@
 <div class="post-detail">
 	<!-- Post Content -->
 	<div class="post-container">
-		<PostCard {post} />
+		<PostCard {post} currentUser={data.currentUser} />
 	</div>
 
 	<!-- Comment Section -->

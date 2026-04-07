@@ -40,18 +40,35 @@
 
   let toastContainer = $state<ToastContainer>();
 
-  // Derived booleans for cleaner template
-  const isSetupOrLogin = $derived(
-    $page.url.pathname.startsWith('/setup') || 
-    $page.url.pathname.startsWith('/login') || 
-    $page.url.pathname.startsWith('/register')
+  // Page state - use browser location for client-side routing
+  let currentPath = $state('/');
+  let isSetupOrLogin = $derived(
+    currentPath.startsWith('/setup') || 
+    currentPath.startsWith('/login') || 
+    currentPath.startsWith('/register')
   );
-
-  const isHomePage = $derived($page.url.pathname === '/');
+  let isHomePage = $derived(currentPath === '/');
+  // Update current path and reconnect realtime when it changes
+  $effect(() => {
+    if (typeof window !== 'undefined') {
+      const newPath = window.location.pathname;
+      currentPath = newPath;
+      
+      // Extract community from path and connect
+      const match = newPath.match(/^\/c\/([^\/]+)/);
+      const community = match ? match[1] : null;
+      
+      if (community) {
+        realtime.connect(community);
+      } else {
+        realtime.connect();
+      }
+    }
+  });
 
   onMount(() => {
     theme.init();
-    realtime.connect();
+    // Initial connection will be handled by the effect above
   });
 
 </script>
@@ -61,7 +78,7 @@
     <Topbar user={data?.user ?? null} />
   {/if}
 
-  <div class="app-body">
+<div class="app-body">
     {#if !isSetupOrLogin}
       <Sidebar user={data?.user ?? null} communities={data?.memberCommunities?.length ? data.memberCommunities : []} />
     {/if}
@@ -74,6 +91,7 @@
       {#if isHomePage}
         <!-- Home page only: trending, stats, links -->
         <RightPanel user={data?.user ?? null} home={data?.home ?? null} community={null} />
+
 
       {/if}
     {/if}
@@ -167,24 +185,23 @@
     --border-orange: #c2410c;
   }
 
-  :global(html) {
+  :global(html), :global(body) {
     font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
     color: var(--text-primary);
     background: var(--surface-raised);
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
+    height: 100%;
+    overflow: hidden;
   }
 
-  :global(body) { background: var(--surface-raised); }
-
   /* Custom Scrollbar */
-  :global(*) { scrollbar-width: thin; scrollbar-color: var(--border) var(--surface); }
-  :global(::-webkit-scrollbar) { width: 8px; height: 8px; }
-  :global(::-webkit-scrollbar-track) { background: var(--surface); }
+  :global(::-webkit-scrollbar) { width: 6px; height: 6px; }
+  :global(::-webkit-scrollbar-track) { background: transparent; }
   :global(::-webkit-scrollbar-thumb) { background: var(--border); border-radius: 4px; }
   :global(::-webkit-scrollbar-thumb:hover) { background: var(--border-hover); }
 
-  .app-root { min-height: 100vh; display: flex; flex-direction: column; }
+  .app-root { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
   .app-body {
     display: flex;
@@ -193,13 +210,14 @@
     margin: 0 auto;
     width: 100%;
     gap: 0.25rem;
+    min-height: 0;
   }
 
-  /* ✅ Removed max-width: 740px — main now fills all available space */
   .app-main {
     flex: 1;
     min-width: 0;
     padding: 1rem 1rem;
+    overflow-y: auto;
   }
 
   .setup-main {

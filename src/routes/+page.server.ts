@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import { desc, eq, inArray, sql, and } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
 import { communityMemberships, communities, posts, users, votes } from '$lib/server/db/schema.js';
 import { serverCache, cacheKey } from '$lib/server/cache.js';
@@ -64,20 +64,37 @@ export const load: PageServerLoad = async ({ locals, cookies, url, parent }) => 
     ? await db.select({
         id: posts.id, title: posts.title, type: posts.type, linkUrl: posts.linkUrl, linkPreview: posts.linkPreview,
         mediaUrls: posts.mediaUrls, upvotes: posts.upvotes, downvotes: posts.downvotes, score: posts.score,
-        commentCount: posts.commentCount, isNsfw: posts.isNsfw, isSpoiler: posts.isSpoiler, flair: posts.flair,
-        flairColor: posts.flairColor, pollOptions: sql<any>`${posts.pollOptions}`, pollVotes: sql<any>`${posts.pollVotes}`,
-        pollTotalVotes: posts.pollTotalVotes, pollEndsAt: posts.pollEndsAt, pollAllowMultiple: posts.pollAllowMultiple,
-        pollAllowChange: posts.pollAllowChange,
+        commentCount: posts.commentCount, isNsfw: posts.isNsfw, isSpoiler: posts.isSpoiler, isEdited: posts.isEdited,
+        flair: posts.flair, flairColor: posts.flairColor, pollOptions: sql<any>`${posts.pollOptions}`,
+        pollVotes: sql<any>`${posts.pollVotes}`, pollTotalVotes: posts.pollTotalVotes, pollEndsAt: posts.pollEndsAt,
+        pollAllowMultiple: posts.pollAllowMultiple, pollAllowChange: posts.pollAllowChange,
       }).from(posts).where(inArray(posts.id, postIds))
     : [];
 
   const postDataMap = new Map(postDataRows.map((p) => [p.id, p]));
+
+  const voteMap = new Map<string, number>();
+  if (locals.user && postIds.length > 0) {
+    const voteRows = await db
+      .select({ targetId: votes.targetId, value: votes.value })
+      .from(votes)
+      .where(
+        and(
+          eq(votes.userId, locals.user.id),
+          eq(votes.targetType, 'post'),
+          inArray(votes.targetId, postIds)
+        )
+      );
+
+    voteRows.forEach((vote) => voteMap.set(vote.targetId, Number(vote.value ?? 0)));
+  }
 
   return {
     home: {
       siteStats,
       trendingCommunities,
     },
+    currentUser: locals.user ? { id: locals.user.id, username: locals.user.username, email: locals.user.email } : null,
     posts: feedPosts.map((post) => {
       const author = authorMap.get(post.authorId);
       const community = communityMap.get(post.communityId || '');
@@ -99,6 +116,7 @@ export const load: PageServerLoad = async ({ locals, cookies, url, parent }) => 
         pollAllowChange: Boolean(postData?.pollAllowChange),
         userPollVote: postData?.type === 'poll' ? (pollVotes[post.id] || null) : null,
         author: {
+          id: post.authorId,
           username: author?.username ?? 'anonymous',
           avatarUrl: author?.image ?? '',
         },
@@ -114,9 +132,10 @@ export const load: PageServerLoad = async ({ locals, cookies, url, parent }) => 
         createdAt: post.createdAt,
         isNsfw: postData?.isNsfw ?? false,
         isSpoiler: postData?.isSpoiler ?? false,
+        isEdited: postData?.isEdited ?? false,
         flair: postData?.flair ?? '',
         flairColor: postData?.flairColor ?? '#3b82f6',
-        userVote: 0 as const,
+        userVote: Number(voteMap.get(post.id) ?? 0),
         isBookmarked: false,
       };
     }),

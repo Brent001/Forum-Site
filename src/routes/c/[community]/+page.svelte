@@ -1,20 +1,35 @@
 <script lang="ts">
   import Icon from '@iconify/svelte';
   import PostCard from '$lib/component/ui/PostCard.svelte';
+  import CommunityAvatar from '$lib/component/ui/CommunityAvatar.svelte';
+  import { realtime } from '$lib/stores/realtime.js';
+  import { onMount } from 'svelte';
 
   const { data = {} } = $props<{
     data?: {
       user?: { username: string; avatarUrl?: string } | null;
+      owner?: { username: string; avatarUrl: string } | null;
+      isSiteAdmin?: boolean;
       community?: {
         id: string;
         name: string;
         displayName: string;
         description: string;
         icon: string;
+        banner?: string;
+        logoUrl?: string;
+        themeColor?: string;
+        rules?: Array<{ title: string; description?: string }>;
+        nsfw?: boolean;
+        requireApproval?: boolean;
+        restrictPosting?: boolean;
+        hideDiscovery?: boolean;
+        archived?: boolean;
+        allowLinks?: boolean;
+        allowMedia?: boolean;
+        allowPolls?: boolean;
         memberCount: number;
         postCount: number;
-        banner?: string;
-        rules?: string[];
       } | null;
       posts?: Array<{
         id: string;
@@ -29,6 +44,7 @@
         createdAt: string | Date;
         isNsfw: boolean;
         isSpoiler: boolean;
+        isEdited: boolean;
         flair: string;
         flairColor: string;
         userVote: -1 | 0 | 1;
@@ -40,8 +56,11 @@
   }>();
 
   let activeSort = $state<'hot' | 'new' | 'top' | 'rising'>('hot');
-  let joined = $state(data.joined ?? false);
-  let membershipRole = $state<'owner' | 'moderator' | 'member' | null>(data.membershipRole ?? null);
+  let joined = $derived(data.joined ?? false);
+  let membershipRole = $derived<'owner' | 'moderator' | 'member' | null>(data.membershipRole ?? null);
+  let isSiteAdmin = $derived(data.isSiteAdmin ?? false);
+
+  const canManageSettings = $derived(membershipRole === 'owner' || membershipRole === 'moderator' || isSiteAdmin);
 
   const sortOptions = [
     { key: 'hot',    label: 'Hot',    icon: 'lucide:flame' },
@@ -58,9 +77,11 @@
       : (data.posts ?? [])
   );
 
-  const rules = data.community?.rules?.length
-    ? data.community.rules
-    : ['Be respectful and civil', 'No spam or self-promotion', 'Stay on topic', 'Follow site-wide rules', 'Use appropriate flairs'];
+  const rules = $derived(
+    data.community?.rules?.length
+      ? data.community.rules.map((r: string | { title: string; description?: string }) => typeof r === 'string' ? r : r.title)
+      : ['Be respectful and civil', 'No spam or self-promotion', 'Stay on topic', 'Follow site-wide rules', 'Use appropriate flairs']
+  );
 </script>
 
 <svelte:head>
@@ -73,7 +94,7 @@
        FULL-WIDTH HERO: Banner + Sticky Header
        Breaks out of .app-main padding
   ═══════════════════════════════════════════ -->
-  <div class="community-hero">
+  <div class="community-hero community-page" style="--community-theme: {data.community?.themeColor ?? '#4f46e5'}">
 
     <!-- Banner -->
     <div class="banner">
@@ -90,17 +111,21 @@
 
         <div class="identity">
           <div class="avatar-wrap">
-            <div class="avatar">{data.community.icon}</div>
+            <CommunityAvatar icon={data.community.icon} size="lg" name={data.community.name} />
           </div>
           <div class="identity-text">
             <div class="name-row">
               <h1 class="display-name">{data.community.displayName}</h1>
-              {#if membershipRole}
+              {#if data.isSiteAdmin}
+                <span class="role-badge role-admin">
+                  <Icon icon="lucide:shield" width="12" height="12" /> Admin
+                </span>
+              {:else if membershipRole}
                 <span class="role-badge role-{membershipRole}">
                   {#if membershipRole === 'owner'}
                     <Icon icon="lucide:crown" width="12" height="12" /> Owner
                   {:else if membershipRole === 'moderator'}
-                    <Icon icon="lucide:shield" width="12" height="12" /> Mod
+                    <Icon icon="lucide:shield-check" width="12" height="12" /> Moderator
                   {:else}
                     <Icon icon="lucide:check" width="12" height="12" /> Member
                   {/if}
@@ -112,14 +137,14 @@
         </div>
 
         <div class="actions">
-          {#if membershipRole === 'owner' || membershipRole === 'moderator'}
+          {#if canManageSettings}
             <a href="/c/{data.community.name}/settings" class="btn btn-ghost">
               <Icon icon="lucide:settings" width="13" height="13" /> Settings
             </a>
           {/if}
 
           {#if data.user}
-            <a href="/c/{data.community.name}/submit" class="btn btn-ghost">
+            <a href="/c/{data.community.name}/submit" class="btn btn-ghost" class:disabled={data.community?.archived}>
               <Icon icon="lucide:pen-square" width="13" height="13" /> Create Post
             </a>
             <form method="POST" action="?/join" style="display:contents">
@@ -165,15 +190,31 @@
             <span>Posts</span>
           </div>
           <div class="stat-divider"></div>
-          <div class="about-stat active-stat">
+          <div class="about-stat online-stat">
             <span class="pulse-dot"></span>
-            <span>Community is active</span>
+            <strong>{$realtime.communityOnlineCounts[data.community.name] || 0}</strong>
+            <span>Online now</span>
           </div>
         </div>
       </div>
     </div>
 
   </div><!-- /community-hero -->
+
+  <!-- Community Status Warnings -->
+  {#if data.community?.nsfw}
+    <div class="status-banner nsfw-banner">
+      <Icon icon="lucide:triangle-alert" width="16" height="16" />
+      <span>This community is marked as NSFW (18+). Content may be inappropriate.</span>
+    </div>
+  {/if}
+
+  {#if data.community?.archived}
+    <div class="status-banner archived-banner">
+      <Icon icon="lucide:archive" width="16" height="16" />
+      <span>This community is archived. No new posts or comments can be created.</span>
+    </div>
+  {/if}
 
   <!-- ══════════════════════════════════════════
        MAIN CONTENT: Feed (left) + Sidebar (right)
@@ -201,7 +242,7 @@
         <div class="posts-list">
           {#each displayPosts as post}
             <div class="post-card">
-              <PostCard {post} postUrl={`/c/${data.community.name}/p/${post.id}`} />
+              <PostCard {post} postUrl={`/c/${data.community.name}/p/${post.id}`} currentUser={data.currentUser} />
             </div>
           {/each}
         </div>
@@ -241,14 +282,15 @@
 
           <div class="s-active">
             <span class="pulse-dot"></span>
-            Community is active
+            <strong>{$realtime.communityOnlineCounts[data.community.name] || 0}</strong>
+            <span>Online now</span>
           </div>
 
           <div class="s-divider"></div>
 
           <div class="s-meta">
             <Icon icon="lucide:calendar" width="13" height="13" />
-            Created by <a href="/u/admin" class="s-link">u/admin</a>
+            Created by <a href="/u/{data.owner?.username ?? 'admin'}" class="s-link">u/{data.owner?.username ?? 'admin'}</a>
           </div>
 
           {#if data.user}
@@ -272,14 +314,24 @@
         </div>
       </div>
 
-      <!-- Moderators card -->
+      <!-- Community owner / moderators card -->
       <div class="s-card">
-        <div class="s-card-head">Moderators</div>
+        <div class="s-card-head">Community Owner</div>
         <div class="s-card-body">
-          <div class="s-mod">
-            <div class="s-mod-avatar">👤</div>
-            <a href="/u/automod" class="s-link">u/automod</a>
-          </div>
+          {#if data.owner}
+            <div class="s-mod">
+              <div class="s-mod-avatar">
+                {#if data.owner.avatarUrl}
+                  <img src={data.owner.avatarUrl} alt={data.owner.username} style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                {:else}
+                  👤
+                {/if}
+              </div>
+              <a href="/u/{data.owner.username}" class="s-link">u/{data.owner.username}</a>
+            </div>
+          {:else}
+            <p style="color: var(--text-muted); font-size: 0.875rem;">No owner found</p>
+          {/if}
         </div>
       </div>
 
@@ -314,7 +366,7 @@
   .banner-img { width: 100%; height: 100%; object-fit: cover; }
   .banner-gradient {
     width: 100%; height: 100%;
-    background: linear-gradient(135deg, #3b4fd4 0%, #1e3a8a 100%);
+    background: linear-gradient(135deg, var(--community-theme) 0%, color-mix(in srgb, var(--community-theme) 70%, black) 100%);
     opacity: 0.85;
   }
   @media (max-width: 768px) { .banner { height: 120px; } }
@@ -369,6 +421,7 @@
   }
   .role-owner     { background: #fef3c7; color: #92400e; }
   .role-moderator { background: var(--accent-subtle); color: var(--accent); }
+  .role-admin     { background: #e0e7ff; color: #4338ca; }
   .role-member    { background: #dcfce7; color: #166534; }
 
   .actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
@@ -413,7 +466,6 @@
   .stat-divider { width: 1px; height: 14px; background: var(--border); flex-shrink: 0; }
 
   .active-stat { color: #16a34a; font-size: 0.76rem; font-weight: 500; gap: 0.4rem; }
-  .active-stat span { color: #16a34a; }
 
   .pulse-dot {
     width: 7px; height: 7px;
@@ -426,7 +478,23 @@
     50%       { box-shadow: 0 0 0 4px rgba(34,197,94,0.05); }
   }
 
-  /* ─── Page body: feed + sidebar ─── */
+  /* Community Status Warnings */
+  .status-banner {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    margin: 0 -1.5rem 1rem;
+    font-size: 0.875rem; font-weight: 500;
+    border-radius: 0;
+  }
+  .nsfw-banner {
+    background: #fef2f2; color: #dc2626; border-bottom: 1px solid #fecaca;
+  }
+  .archived-banner {
+    background: #fef3c7; color: #d97706; border-bottom: 1px solid #fcd34d;
+  }
+  @media (max-width: 768px) {
+    .status-banner { margin: 0 -1rem 1rem; padding: 0.75rem 1rem; }
+  }
   .page-body {
     display: grid;
     grid-template-columns: 1fr 300px;
@@ -504,8 +572,7 @@
   /* ─── Sidebar column ─── */
   .sidebar-col {
     display: flex; flex-direction: column; gap: 0.75rem;
-    position: sticky;
-    top: calc(60px + 53px + 45px); /* topbar + community-header + about-bar */
+    height: fit-content;
   }
 
   .s-card {

@@ -15,6 +15,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			id: communities.id,
 			name: communities.name,
 			displayName: communities.displayName,
+			archived: communities.archived,
 		})
 		.from(communities)
 		.where(eq(communities.name, params.community))
@@ -22,6 +23,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	if (!community) {
 		throw redirect(303, '/');
+	}
+
+	// Check if community is archived
+	if (community.archived) {
+		throw redirect(303, `/c/${params.community}`);
 	}
 
 	// Check if user is a member of this community
@@ -95,7 +101,8 @@ export const actions: Actions = {
 			))
 			.limit(1);
 
-		if (!membership) {
+		const isAdmin = locals.user.isAdmin;
+		if (!membership && !isAdmin) {
 			return fail(403, { error: 'You must be a member of this community to post.', title, body, type });
 		}
 

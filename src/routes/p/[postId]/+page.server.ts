@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types.ts';
 
-export const load: PageServerLoad = async ({ params, fetch, url }) => {
+export const load: PageServerLoad = async ({ params, fetch, url, locals }) => {
 	const { postId } = params;
 	const sort = url.searchParams.get('sort') || 'hot';
 
@@ -22,6 +22,7 @@ export const load: PageServerLoad = async ({ params, fetch, url }) => {
 			post: data.post,
 			comments: data.comments,
 			sort,
+			currentUser: locals.user ? { id: locals.user.id, username: locals.user.username, email: locals.user.email } : null,
 		};
 	} catch (err) {
 		console.error('Error loading post:', err);

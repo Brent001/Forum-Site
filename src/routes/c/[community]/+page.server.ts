@@ -16,20 +16,48 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			description: communities.description,
 			icon: communities.icon,
 			banner: communities.banner,
+			logoUrl: communities.logoUrl,
+			themeColor: communities.themeColor,
+			rules: communities.rules,
+			nsfw: communities.nsfw,
+			requireApproval: communities.requireApproval,
+			restrictPosting: communities.restrictPosting,
+			hideDiscovery: communities.hideDiscovery,
+			archived: communities.archived,
+			allowLinks: communities.allowLinks,
+			allowMedia: communities.allowMedia,
+			allowPolls: communities.allowPolls,
 			memberCount: communities.memberCount,
 			postCount: communities.postCount,
-			rules: communities.rules,
 		})
 		.from(communities)
 		.where(eq(communities.name, params.community))
 		.limit(1);
 
 if (!community) {
-	return { community: null, posts: [], joined: false, membershipRole: null };
+	return { community: null, posts: [], joined: false, membershipRole: null, owner: null, isSiteAdmin: false, moderators: [] };
 }
+
+// Fetch the community owner
+const [ownerRecord] = await db
+	.select({
+		userId: communityMemberships.userId,
+		username: users.username,
+		image: users.image,
+	})
+	.from(communityMemberships)
+	.leftJoin(users, eq(users.id, communityMemberships.userId))
+	.where(
+		and(
+			eq(communityMemberships.communityId, community.id),
+			eq(communityMemberships.role, 'owner')
+		)
+	)
+	.limit(1);
 
 let joined = false;
 let membershipRole: 'owner' | 'moderator' | 'member' | null = null;
+let isSiteAdmin = false;
 
 if (locals.user) {
 	const [membership] = await db
@@ -48,6 +76,10 @@ if (locals.user) {
 	if (membership) {
 		joined = true;
 		membershipRole = membership.role as 'owner' | 'moderator' | 'member';
+	}
+
+	if (locals.user.isAdmin) {
+		isSiteAdmin = true;
 	}
 }
 
@@ -76,8 +108,10 @@ const communityPosts = await db
 		createdAt: posts.createdAt,
 		isNsfw: posts.isNsfw,
 		isSpoiler: posts.isSpoiler,
+		isEdited: posts.isEdited,
 		flair: posts.flair,
 		flairColor: posts.flairColor,
+		authorId: posts.userId,
 		authorUsername: users.username,
 		authorImage: users.image,
 		userVote: locals.user ? sql<number>`COALESCE(${votes.value}, 0)` : sql<number>`0`,
@@ -86,7 +120,7 @@ const communityPosts = await db
 	.leftJoin(users, eq(users.id, posts.userId))
 	.leftJoin(communities, eq(communities.id, posts.communityId))
 	.leftJoin(votes, locals.user ? sql`${votes.userId} = ${locals.user.id} AND ${votes.targetId} = ${posts.id} AND ${votes.targetType} = 'post'` : sql`false`)
-	.where(eq(communities.id, community.id))
+	.where(eq(posts.communityId, community.id))
 	.orderBy(desc(posts.score), desc(posts.createdAt))
 	.limit(50);
 
@@ -107,18 +141,7 @@ const communityPosts = await db
 		ancestors: [],
 	}));
 
-	// Apply age filter
-	const ageFilteredResult = filterByAge(algorithmCandidates);
-	algorithmCandidates = ageFilteredResult.kept;
-
-	// Apply duplicate detection
-	const dedupResult = filterByDuplicates(algorithmCandidates);
-	algorithmCandidates = dedupResult.kept;
-
-	// Take top 10 for display
-	algorithmCandidates = algorithmCandidates.slice(0, 10);
-
-	// Map algorithm candidates back to detailed post data
+	// For community feed, just use all posts without aggressive filtering
 	const filteredPostIds = new Set(algorithmCandidates.map((c) => c.postId));
 	const filteredPosts = communityPosts.filter((p) => filteredPostIds.has(p.id));
 
@@ -130,12 +153,25 @@ const communityPosts = await db
 			description: community.description ?? '',
 			icon: community.icon ?? '🌐',
 			banner: community.banner ?? '',
+			logoUrl: community.logoUrl ?? '',
+			themeColor: community.themeColor ?? '#4f46e5',
+			rules: community.rules ?? [],
+			nsfw: community.nsfw ?? false,
+			requireApproval: community.requireApproval ?? false,
+			restrictPosting: community.restrictPosting ?? false,
+			hideDiscovery: community.hideDiscovery ?? false,
+			archived: community.archived ?? false,
+			allowLinks: community.allowLinks ?? true,
+			allowMedia: community.allowMedia ?? true,
+			allowPolls: community.allowPolls ?? true,
 			memberCount: Number(community.memberCount ?? 0),
 			postCount: Number(community.postCount ?? 0),
-			rules: community.rules ?? [],
 		},
+		owner: ownerRecord ? { username: ownerRecord.username, avatarUrl: ownerRecord.image ?? '' } : null,
+		isSiteAdmin,
 		joined,
 		membershipRole,
+		currentUser: locals.user ? { id: locals.user.id, username: locals.user.username, email: locals.user.email } : null,
 		posts: filteredPosts.map((post) => ({
 	id: post.id,
 	title: post.title,
@@ -157,6 +193,7 @@ const communityPosts = await db
 		icon: post.communityIcon ?? community.icon ?? '🌐',
 	},
 	author: {
+		id: post.authorId,
 		username: post.authorUsername ?? 'anonymous',
 		avatarUrl: post.authorImage ?? '',
 	},
@@ -167,6 +204,7 @@ const communityPosts = await db
 	createdAt: post.createdAt,
 	isNsfw: Boolean(post.isNsfw),
 	isSpoiler: Boolean(post.isSpoiler),
+	isEdited: Boolean(post.isEdited),
 	flair: post.flair ?? '',
 	flairColor: post.flairColor ?? '#3b82f6',
 	userVote: Number(post.userVote ?? 0),

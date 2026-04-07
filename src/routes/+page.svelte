@@ -116,7 +116,7 @@
     {:else if displayPosts.length > 0}
       {#each displayPosts as post (post.id)}
         <div class="post-wrap" transition:fade={{ duration: 180 }}>
-          <PostCard post={{ ...post, type: (post.type as 'image' | 'text' | 'link' | 'video') || 'text' }} />
+          <PostCard post={{ ...post, type: (post.type as 'image' | 'text' | 'link' | 'video') || 'text' }} currentUser={data.currentUser} />
         </div>
       {/each}
 
